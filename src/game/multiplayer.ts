@@ -208,10 +208,16 @@ export class PeerRoom {
 
   private applyPose(packet: Extract<Packet, { type: "pose" }>) {
     const previous = this.poseBaselines.get(packet.playerId);
-    if (!packet.full && !previous) return false;
+    const lastSequence = this.poseSequences.get(packet.playerId) ?? 0;
+    if (packet.seq <= lastSequence || (!packet.full && !previous)) return false;
     const values = packet.full ? [...packet.values] : [...previous!];
     if (!packet.full) {
-      for (let i = 0; i + 1 < packet.values.length; i += 2) values[packet.values[i]] = packet.values[i + 1];
+      for (let i = 0; i + 1 < packet.values.length; i += 2) {
+        const index = packet.values[i];
+        const value = packet.values[i + 1];
+        if (!Number.isInteger(index) || index < 0 || index >= values.length || !Number.isInteger(value)) return false;
+        values[index] = clampInt16(value);
+      }
     }
     if (values.length % VALUES_PER_BODY !== 0 || values.length / VALUES_PER_BODY > BODY_KEYS.length) return false;
     this.poseBaselines.set(packet.playerId, values);
