@@ -365,8 +365,8 @@ export default function App() {
         </div>
       )}
 
-      {gameStarted && !runEnded && radiatorStage === null && <><button onClick={() => setArmoryOpen(true)} className="cyber-menu-trigger absolute right-3 bottom-36 z-20 sm:right-5">▦ ARMORY</button><button onClick={() => { setMenuTab("play"); setMenuOpen(true); }} className="cyber-menu-trigger absolute right-3 bottom-28 z-20 sm:right-5">☰ MENU</button><button onClick={endRun} className="end-run-button absolute right-3 bottom-16 z-20 sm:right-5">☠ END RUN</button></>}
-      {gameStarted && !endingRun && !runEnded && radiatorStage === null && <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-2 sm:left-4 sm:top-4">
+      {gameStarted && !runEnded && radiatorStage === null && <><button onClick={() => setArmoryOpen(true)} className="game-action-buttons game-armory-button cyber-menu-trigger absolute right-3 bottom-36 z-20 sm:right-5">▦ ARMORY</button><button onClick={() => { setMenuTab("play"); setMenuOpen(true); }} className="game-action-buttons game-menu-button cyber-menu-trigger absolute right-3 bottom-28 z-20 sm:right-5">☰ MENU</button><button onClick={endRun} className="game-action-buttons game-end-button end-run-button absolute right-3 bottom-16 z-20 sm:right-5">☠ END RUN</button></>}
+      {gameStarted && !endingRun && !runEnded && radiatorStage === null && <div className="game-place-controls pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-2 sm:left-4 sm:top-4">
         <div className="pointer-events-auto flex items-center gap-2">
           <div className="flex items-center gap-2 rounded-2xl border-2 border-white/30 bg-black/45 px-3 py-1.5 text-sm font-semibold backdrop-blur sm:text-base">
             <span className="text-xl">{place.emoji}</span>
@@ -383,7 +383,7 @@ export default function App() {
       </div>}
 
       {/* Top-right: score */}
-      {gameStarted && !endingRun && !runEnded && radiatorStage === null && <div className="pointer-events-none absolute right-3 top-3 z-10 flex w-56 flex-col items-end gap-2 sm:right-4 sm:top-4 sm:w-72">
+      {gameStarted && !endingRun && !runEnded && radiatorStage === null && <div className="game-score-panel pointer-events-none absolute right-3 top-3 z-10 flex w-56 flex-col items-end gap-2 sm:right-4 sm:top-4 sm:w-72">
         <div className="flex items-center gap-2">
           {stats.kos > 0 && (
             <div className="rounded-xl bg-red-600/90 px-2 py-1 text-sm font-bold">💀 {stats.kos}</div>
@@ -415,7 +415,7 @@ export default function App() {
       </div>}
 
       {/* Left: toggles */}
-      {gameStarted && !endingRun && !runEnded && radiatorStage === null && <div className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2 sm:left-4">
+      {gameStarted && !endingRun && !runEnded && radiatorStage === null && <div className="game-side-controls absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2 sm:left-4">
         <SideBtn label="Reset buddy (R)" on={false} onClick={reset}>🔄</SideBtn>
         <SideBtn
           label="Buddy tries to stand up"
@@ -483,9 +483,9 @@ export default function App() {
         </div>
       )*/}
 
-      {gameStarted && !endingRun && !runEnded && radiatorStage === null && <div className="absolute inset-x-0 bottom-2 z-20 flex justify-center px-2"><div className="weapon-hotbar">{loadout.map((id, index) => { const item = TOOLS.find((entry) => entry.id === id) ?? TOOLS[0]; const keyLabel = index === 9 ? "0" : String(index + 1); return <button key={index} onClick={() => selectTool(id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const dropped = e.dataTransfer.getData("text/tool-id"); if (TOOLS.some((entry) => entry.id === dropped)) { setLoadout((old) => old.map((value, slot) => slot === index ? dropped : value)); selectTool(dropped); } }} className={`weapon-slot ${tool === id ? "active" : ""}`} title={`${keyLabel} · ${item.name}`}><small>{keyLabel}</small><span>{item.emoji}</span></button>; })}</div></div>}
+      {gameStarted && !endingRun && !runEnded && radiatorStage === null && <div className="game-hotbar-wrap absolute inset-x-0 bottom-2 z-20 flex justify-center px-2"><div className="weapon-hotbar">{loadout.map((id, index) => { const item = TOOLS.find((entry) => entry.id === id) ?? TOOLS[0]; const keyLabel = index === 9 ? "0" : String(index + 1); return <button key={index} onClick={() => selectTool(id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const dropped = e.dataTransfer.getData("text/tool-id"); if (TOOLS.some((entry) => entry.id === dropped)) { setLoadout((old) => old.map((value, slot) => slot === index ? dropped : value)); selectTool(dropped); } }} className={`weapon-slot ${tool === id ? "active" : ""}`} title={`${keyLabel} · ${item.name}`}><small>{keyLabel}</small><span>{item.emoji}</span></button>; })}</div></div>}
       {menuOpen && ready && !endingRun && !runEnded && (
-        <div className="absolute inset-0 z-40 flex items-center justify-start overflow-y-auto bg-gradient-to-r from-[#030712]/65 via-[#030712]/20 to-transparent p-3 backdrop-blur-[2px] sm:p-8">
+        <div className="main-menu-backdrop absolute inset-0 z-40 flex items-center justify-start overflow-y-auto bg-gradient-to-r from-[#030712]/65 via-[#030712]/20 to-transparent p-3 backdrop-blur-[2px] sm:p-8">
           <div className={`cyber-menu cyber-menu-side w-full max-w-[440px] ${menuLeaving ? "menu-exit" : ""}`}>
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-cyan-300/20 p-5 sm:p-7"><div><div className="cyber-kicker">NEON DISTRICT // SYSTEM ONLINE</div><h1 className="cyber-title">WHAT<span>BASH</span></h1><p className="text-xs tracking-[.25em] text-cyan-100/60">RAGDOLL MAYHEM SIMULATOR · BUILD 2099.7</p></div></div>
             <div className="flex flex-wrap gap-2 border-b border-cyan-300/15 p-4">{(["play","arenas","style","multiplayer"] as const).map((tab) => <button key={tab} onClick={() => { setMenuTab(tab); if (tab === "multiplayer") setRoomScreen("home"); }} className={`cyber-tab ${menuTab===tab?"active":""}`}>{tab==="play"?"▶ START":tab==="style"?"◈ CHARACTER":tab==="arenas"?"⌖ AREA":"◎ MULTIPLAYER"}</button>)}</div>
