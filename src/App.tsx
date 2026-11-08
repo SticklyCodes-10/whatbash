@@ -35,7 +35,6 @@ export default function App() {
   const [endingRun, setEndingRun] = useState(false);
   const [runEnded, setRunEnded] = useState(false);
   const [runSummary, setRunSummary] = useState<Stats | null>(null);
-  const [buddyQuote, setBuddyQuote] = useState("pls hemp me");
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const deployedVersion = useRef<string | null>(null);
   const runStartedAt = useRef<number>(Date.now());
@@ -176,12 +175,7 @@ export default function App() {
   }, [endingRun, runEnded]);
 
 
-  useEffect(() => {
-    if (!gameStarted || runEnded || endingRun) return;
-    const quotes = ["pls hemp me", "i need ai", "meow"];
-    const timer = window.setInterval(() => setBuddyQuote(quotes[Math.floor(Math.random() * quotes.length)]), 6500 + Math.floor(Math.random() * 4500));
-    return () => window.clearInterval(timer);
-  }, [gameStarted, endingRun, runEnded]);
+
 
   useEffect(() => {
     let active = true;
@@ -253,7 +247,6 @@ export default function App() {
 
 
 
-      {gameStarted && !endingRun && !runEnded && <div className="buddy-speech absolute left-1/2 top-[13%] z-20 -translate-x-1/2" aria-live="polite"><span>{buddyQuote}</span></div>}
       {updateAvailable && <div className="update-notice absolute bottom-4 left-1/2 z-[90] flex w-[min(92vw,520px)] -translate-x-1/2 items-center justify-between gap-4 rounded-xl border border-cyan-300/50 bg-slate-950/95 px-4 py-3 text-sm text-cyan-50 shadow-2xl"><span><b className="block text-cyan-200">NEW UPDATE AVAILABLE</b>Reload the website to apply the new update.</span><button onClick={() => window.location.reload()} className="cyber-button shrink-0">RELOAD</button></div>}
 
       {error && (
