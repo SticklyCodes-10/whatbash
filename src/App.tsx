@@ -86,16 +86,16 @@ export default function App() {
 
       {!ready && !error && (
         <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-sky-500 to-indigo-700">
-          <div className="title-font text-6xl tracking-wider drop-shadow-[0_4px_0_rgba(0,0,0,0.35)]">BUDDY BASH 3D</div>
+          <div className="title-font text-6xl tracking-wider drop-shadow-[0_4px_0_rgba(0,0,0,0.35)]">WHATBASH IS LOADING</div>
           <div className="animate-bounce text-5xl">🥾</div>
-          <div className="text-lg opacity-90">Finding a random place…</div>
+          <div className="text-lg opacity-90">Setting Up...</div>
         </div>
       )}
 
       {/* Top-left: title + place */}
       <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-2 sm:left-4 sm:top-4">
         <div className="title-font text-3xl leading-none tracking-wider text-yellow-300 drop-shadow-[0_3px_0_rgba(0,0,0,0.45)] sm:text-4xl">
-          BUDDY BASH <span className="text-white">3D</span>
+          WHATBASH <span className="text-white">FOR WHAT</span>
         </div>
         <div className="pointer-events-auto flex items-center gap-2">
           <div className="flex items-center gap-2 rounded-2xl border-2 border-white/30 bg-black/45 px-3 py-1.5 text-sm font-semibold backdrop-blur sm:text-base">
@@ -183,7 +183,7 @@ export default function App() {
       </div>
 
       {/* Help card */}
-      {showHelp && ready && (
+      {/*showHelp && ready && (
         <div className="absolute left-16 top-1/2 z-10 hidden max-w-[260px] -translate-y-1/2 rounded-2xl border-2 border-white/25 bg-black/55 p-3 text-sm leading-snug backdrop-blur sm:block">
           <div className="mb-1 font-bold text-yellow-300">How to play</div>
           <ul className="list-disc space-y-1 pl-4 opacity-95">
@@ -193,10 +193,10 @@ export default function App() {
             <li>Press <b>N</b> for a new random place.</li>
           </ul>
         </div>
-      )}
+      )*/}
 
       {/* Model status */}
-      {model && (
+      {/*model && (
         <div
           className={cn(
             "pointer-events-none absolute bottom-[118px] right-3 z-10 max-w-[70vw] rounded-lg px-2 py-1 text-[11px] sm:bottom-[124px] sm:right-4",
@@ -206,7 +206,7 @@ export default function App() {
           {model.custom ? "✅ " : "TEST🧑 "}
           {model.text}
         </div>
-      )}
+      )*/}
 
       {/* Bottom: tool bar */}
       <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-2 p-2 sm:p-3">
