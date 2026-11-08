@@ -1,6 +1,9 @@
 import * as THREE from "three";
 import * as CANNON from "cannon-es";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { Ragdoll, GROUP, defaultJoints, BODY_KEYS } from "./ragdoll";
 import type { BodyKey } from "./ragdoll";
 import { buildProceduralBuddy } from "./buddyProcedural";
@@ -67,12 +70,22 @@ const OUCH = ["Ouch!", "Oof!", "Ow!", "Yikes!", "Splat!", "Thud!"];
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+const PincushionShader = {
+  uniforms: { tDiffuse: { value: null }, strength: { value: 0.13 }, aspect: { value: 1 } },
+  vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+  fragmentShader: "uniform sampler2D tDiffuse; uniform float strength; uniform float aspect; varying vec2 vUv; void main(){ vec2 p=(vUv-0.5)*2.0; p.x*=aspect; float r2=dot(p,p); vec2 warped=p*(1.0+strength*r2); warped.x/=aspect; vec2 uv=warped*0.5+0.5; vec4 color=texture2D(tDiffuse,uv); float edge=smoothstep(1.42,0.72,r2); color.rgb*=mix(0.76,1.0,edge); gl_FragColor=vec4(color.rgb,color.a); }"
+};
+
 
 export class Game {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
   camera: THREE.PerspectiveCamera;
   controls: OrbitControls;
+  private composer: EffectComposer;
+  private lensPass: ShaderPass;
+  private menuMode = true;
+  private cameraTransition = 1;
   world: CANNON.World;
   raycaster = new THREE.Raycaster();
   rag!: Ragdoll;
@@ -137,7 +150,7 @@ export class Game {
     this.renderer.domElement.style.touchAction = "none";
 
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 400);
-    this.camera.position.set(3.6, 2.4, 6.4);
+    this.camera.position.set(1.75, 1.65, 3.45);
 
     // physics
     this.world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.81, 0) });
@@ -168,6 +181,11 @@ export class Game {
     this.controls.maxPolarAngle = Math.PI / 2 - 0.03;
     this.controls.target.set(0, 1, 0);
     this.controls.enablePan = false;
+    this.controls.enabled = false;
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.lensPass = new ShaderPass(PincushionShader);
+    this.composer.addPass(this.lensPass);
 
     // fx
     this.scene.add(this.fx.points, this.smoke.points, this.flash, this.zapLight);
@@ -218,6 +236,9 @@ export class Game {
     for (const r of this.rag.list) r.body.addEventListener("collide", this.onRagCollide);
     this.rag.reset(new THREE.Vector3(0, 0.03, 0));
     this.rag.syncVisuals();
+    this.camera.position.set(1.75, 1.65, 3.45);
+    this.controls.target.set(0, 1.05, 0);
+    this.controls.enabled = false;
     this.cb.onReady();
     this.cb.onPlace(this.env.def.name, this.env.def.emoji);
     this.pushStats();
@@ -234,6 +255,7 @@ export class Game {
     window.removeEventListener("pointerup", this.onPointerUp);
     window.removeEventListener("pointercancel", this.onPointerUp);
     this.controls.dispose();
+    this.composer.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss();
     this.renderer.domElement.remove();
@@ -243,6 +265,8 @@ export class Game {
     const w = this.container.clientWidth || 1;
     const h = this.container.clientHeight || 1;
     this.renderer.setSize(w, h);
+    this.composer.setSize(w, h);
+    (this.lensPass.uniforms.aspect as THREE.IUniform<number>).value = w / h;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     const scale = (h * this.renderer.getPixelRatio()) / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
@@ -251,6 +275,13 @@ export class Game {
   }
 
   // ------------------------------------------------------------ public API
+  startGame() {
+    this.menuMode = false;
+    this.cameraTransition = 0;
+    this.controls.enabled = false;
+    this.following = true;
+    this.sfx.whoosh();
+  }
   setTool(t: ToolId) {
     this.tool = TOOLS.find((item) => item.id === t)?.action ?? t;
     this.sfx.tick();
@@ -1087,8 +1118,17 @@ export class Game {
     }
     if (this.statsDirty) this.pushStats();
 
-    // camera follow
-    if (this.following) {
+    // Cinematic main-menu close-up eases into the gameplay camera.
+    if (this.menuMode) {
+      this.camera.position.lerp(new THREE.Vector3(1.75, 1.65, 3.45), 1 - Math.exp(-2.2 * rawDt));
+      this.controls.target.lerp(new THREE.Vector3(0, 1.05, 0), 1 - Math.exp(-2.2 * rawDt));
+    } else if (this.cameraTransition < 1) {
+      this.cameraTransition = Math.min(1, this.cameraTransition + rawDt / 1.25);
+      const t = ease(this.cameraTransition);
+      this.camera.position.lerpVectors(new THREE.Vector3(1.75, 1.65, 3.45), new THREE.Vector3(3.6, 2.4, 6.4), t);
+      this.controls.target.lerpVectors(new THREE.Vector3(0, 1.05, 0), new THREE.Vector3(0, 1, 0), t);
+      if (this.cameraTransition >= 1) this.controls.enabled = true;
+    } else if (this.following) {
       const c = this.rag.center(new THREE.Vector3());
       // Follow Buddy's actual position without an artificial arena-sized clamp.
       // Keep only a small vertical safety range so the camera doesn't chase extreme
@@ -1113,7 +1153,7 @@ export class Game {
       this.camera.position.add(off);
       this.shake = Math.max(0, sh - rawDt * 2.6);
     }
-    this.renderer.render(this.scene, this.camera);
+    this.composer.render();
     if (sh > 0.001) this.camera.position.sub(off);
   };
 
