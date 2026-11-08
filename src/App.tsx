@@ -168,7 +168,7 @@ export default function App() {
       <button onClick={() => { setMenuTab("play"); setMenuOpen(true); }} className="cyber-menu-trigger absolute right-3 bottom-28 z-20 sm:right-5">☰ MENU</button>
       {/* Top-left: title + place */}
       <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-2 sm:left-4 sm:top-4">
-        <div className="title-font text-3xl leading-none tracking-wider text-yellow-300 drop-shadow-[0_3px_0_rgba(0,0,0,0.45)] sm:text-4xl">
+        <div className="title-font cyber-hud-title text-3xl leading-none tracking-wider text-cyan-200 sm:text-4xl">
           WHATBASH <span className="text-white">FOR WHAT</span>
         </div>
         <div className="pointer-events-auto flex items-center gap-2">
@@ -192,7 +192,7 @@ export default function App() {
           {stats.kos > 0 && (
             <div className="rounded-xl bg-red-600/90 px-2 py-1 text-sm font-bold">💀 {stats.kos}</div>
           )}
-          <div className="title-font rounded-2xl border-2 border-yellow-300/60 bg-black/50 px-4 py-1 text-3xl tracking-wide text-yellow-300 backdrop-blur">
+          <div className="title-font cyber-score rounded-2xl border px-4 py-1 text-3xl tracking-wide backdrop-blur">
             ${stats.money.toLocaleString()}
           </div>
         </div>
@@ -324,8 +324,8 @@ function SideBtn({
       title={label}
       aria-label={label}
       className={cn(
-        "flex h-11 w-11 items-center justify-center rounded-2xl border-b-4 text-xl transition active:translate-y-0.5 active:border-b-2",
-        on ? "border-emerald-800 bg-emerald-500" : "border-slate-900 bg-slate-600/90 hover:bg-slate-500"
+        "flex h-11 w-11 items-center justify-center border text-xl transition hover:shadow-[0_0_16px_rgba(34,211,238,.35)] active:scale-95",
+        on ? "border-cyan-300 bg-cyan-950/90 text-cyan-100 shadow-[0_0_14px_rgba(34,211,238,.35)]" : "border-fuchsia-400/40 bg-slate-950/85 text-fuchsia-100 hover:border-cyan-300"
       )}
     >
       {children}
