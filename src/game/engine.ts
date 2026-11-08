@@ -113,6 +113,9 @@ export class Game {
   private radiatorFire = 0;
   private buddyWeirdElapsed = -1;
   private fighters: Array<{ rag: Ragdoll; age: number; attackAt: number }> = [];
+  private ransomFailureElapsed = -1;
+  private ransomFailureDone: (() => void) | null = null;
+  private ransomOriginalColors: Array<{ material: THREE.Material & { color?: THREE.Color }; color: THREE.Color }> = [];
   world: CANNON.World;
   raycaster = new THREE.Raycaster();
   rag!: Ragdoll;
@@ -314,6 +317,49 @@ export class Game {
   }
 
   // ------------------------------------------------------------ public API
+  startRansomFailure(onComplete: () => void) {
+    this.ransomFailureElapsed = 0;
+    this.ransomFailureDone = onComplete;
+    this.following = false;
+    this.controls.enabled = false;
+    this.ransomOriginalColors = [];
+    this.rag.root.traverse((node) => {
+      const mesh = node as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const material of materials) {
+        const colored = material as THREE.Material & { color?: THREE.Color };
+        if (colored.color) { this.ransomOriginalColors.push({ material: colored, color: colored.color.clone() }); colored.color.set(0xff1717); }
+      }
+    });
+    this.sfx.explosion();
+  }
+
+  private updateRansomFailure(dt: number) {
+    if (this.ransomFailureElapsed < 0) return;
+    this.ransomFailureElapsed += dt;
+    const t = this.ransomFailureElapsed;
+    const center = this.rag.center(new THREE.Vector3());
+    this.camera.position.lerp(center.clone().add(new THREE.Vector3(1.2, 1.1, 2.3)), 1 - Math.exp(-3.5 * dt));
+    this.controls.target.lerp(center, 1 - Math.exp(-4 * dt));
+    if (t < 4.2) {
+      for (const part of this.rag.list) {
+        if (Math.random() < .55) part.body.applyImpulse(new CANNON.Vec3(rnd(-1,1)*part.body.mass*2.8, rnd(-1,1)*part.body.mass*2.8, rnd(-1,1)*part.body.mass*2.8));
+      }
+      this.shake = Math.max(this.shake, 1.1 + Math.random() * .8);
+      if (Math.random() < .18) this.sfx.zap();
+    } else {
+      for (const entry of this.ransomOriginalColors) entry.material.color?.copy(entry.color);
+      this.ransomOriginalColors = [];
+      this.ransomFailureElapsed = -1;
+      this.controls.enabled = true;
+      this.following = true;
+      const done = this.ransomFailureDone;
+      this.ransomFailureDone = null;
+      done?.();
+    }
+  }
+
   startGame() {
     this.endRunElapsed = -1;
     this.endRunCallback = null;
@@ -1461,6 +1507,7 @@ export class Game {
     this.updateFighters(rawDt);
     this.updateRadiatorCutscene(rawDt);
     this.updateBuddyWeird(rawDt);
+    this.updateRansomFailure(rawDt);
 
     this.env?.update(rawDt);
 
