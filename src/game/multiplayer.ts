@@ -285,6 +285,7 @@ export class PeerRoom {
       this.promotionTimer = null;
       if (next.id === this.localId) {
         this.isOwner = true;
+        this.peer?.destroy();
         const peer = new Peer(peerIdFor(code), { debug: 1 });
         this.peer = peer;
         peer.on("open", (id) => {
