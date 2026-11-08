@@ -108,6 +108,7 @@ export class Game {
   private animeFightObjects: THREE.Object3D[] = [];
   private animeNextHit = 0;
   private animeHitCount = 0;
+  private animeFinalDone = false;
   private animeStatsTimer = 0;
   private radiatorDone: (() => void) | null = null;
   private radiatorObjects: THREE.Object3D[] = [];
@@ -330,6 +331,7 @@ export class Game {
     this.animeFightDone = onComplete;
     this.animeNextHit = 2.7;
     this.animeHitCount = 0;
+    this.animeFinalDone = false;
     this.animeStatsTimer = 0;
     this.following = false;
     this.controls.enabled = false;
@@ -490,7 +492,8 @@ export class Game {
       }
     } else if (t < 26) {
       const finalTarget = rival.rb.chest.body;
-      if (t < 23.4) {
+      if (t < 23.4 && !this.animeFinalDone) {
+        this.animeFinalDone = true;
         const direction = foe.clone().sub(buddy).setY(0).normalize();
         finalTarget.applyImpulse(new CANNON.Vec3(direction.x * 85 * finalTarget.mass, 36 * finalTarget.mass, direction.z * 85 * finalTarget.mass));
         this.fx.burst(foe, 180, 13, [0xffffff,0xfde047,0xf43f5e,0x38bdf8], 0.12, 1.4, { gravity: 4, drag: 0.8, grow: 2 });
