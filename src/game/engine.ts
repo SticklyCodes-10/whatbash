@@ -1028,6 +1028,8 @@ export class Game {
 
     this.world.step(1 / 60, dt, 5);
 
+    this.env?.update(rawDt);
+
     // standing recovery
     if (!this.grab && this.zapTimer <= 0) this.rag.stand = Math.min(1, this.rag.stand + dt / 4);
 
