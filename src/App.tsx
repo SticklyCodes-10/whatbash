@@ -23,6 +23,7 @@ export default function App() {
   const [follow, setFollow] = useState(true);
   const [showHelp, setShowHelp] = useState(true);
   const [menuOpen, setMenuOpen] = useState(true);
+  const [gameStarted, setGameStarted] = useState(false);
   const [menuTab, setMenuTab] = useState<"play" | "loadout" | "style" | "arenas">("play");
   const [toolSearch, setToolSearch] = useState("");
   const [shirtColor, setShirtColor] = useState("#2fd3cb");
@@ -148,7 +149,7 @@ export default function App() {
     >
       <div ref={mountRef} className="absolute inset-0 cursor-crosshair" />
       <div ref={overlayRef} className="pointer-events-none absolute inset-0 overflow-hidden" />
-      <div className="cyber-screen-effects" aria-hidden="true" />
+
 
       {error && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900 p-6 text-center text-xl">
@@ -164,13 +165,8 @@ export default function App() {
         </div>
       )}
 
-      <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-1 sm:left-5 sm:top-5"><div className="cyber-kicker">WHATBASH // CHAOS SIMULATOR</div><div className="cyber-readout">SECTOR: {place.name.toUpperCase()}</div></div>
-      <button onClick={() => { setMenuTab("play"); setMenuOpen(true); }} className="cyber-menu-trigger absolute right-3 bottom-28 z-20 sm:right-5">☰ MENU</button>
-      {/* Top-left: title + place */}
-      <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-2 sm:left-4 sm:top-4">
-        <div className="title-font cyber-hud-title text-3xl leading-none tracking-wider text-cyan-200 sm:text-4xl">
-          WHATBASH <span className="text-white">FOR WHAT</span>
-        </div>
+      {gameStarted && <button onClick={() => { setMenuTab("play"); setMenuOpen(true); }} className="cyber-menu-trigger absolute right-3 bottom-28 z-20 sm:right-5">☰ MENU</button>}
+      {gameStarted && <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-2 sm:left-4 sm:top-4">
         <div className="pointer-events-auto flex items-center gap-2">
           <div className="flex items-center gap-2 rounded-2xl border-2 border-white/30 bg-black/45 px-3 py-1.5 text-sm font-semibold backdrop-blur sm:text-base">
             <span className="text-xl">{place.emoji}</span>
@@ -187,7 +183,7 @@ export default function App() {
       </div>
 
       {/* Top-right: score */}
-      <div className="pointer-events-none absolute right-3 top-3 z-10 flex w-56 flex-col items-end gap-2 sm:right-4 sm:top-4 sm:w-72">
+      {gameStarted && <div className="pointer-events-none absolute right-3 top-3 z-10 flex w-56 flex-col items-end gap-2 sm:right-4 sm:top-4 sm:w-72">
         <div className="flex items-center gap-2">
           {stats.kos > 0 && (
             <div className="rounded-xl bg-red-600/90 px-2 py-1 text-sm font-bold">💀 {stats.kos}</div>
@@ -219,7 +215,7 @@ export default function App() {
       </div>
 
       {/* Left: toggles */}
-      <div className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2 sm:left-4">
+      {gameStarted && <div className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2 sm:left-4">
         <SideBtn label="Reset buddy (R)" on={false} onClick={reset}>🔄</SideBtn>
         <SideBtn
           label="Buddy tries to stand up"
@@ -287,14 +283,14 @@ export default function App() {
         </div>
       )*/}
 
-      <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center px-3"><div className="cyber-panel flex items-center gap-3 px-4 py-2"><span className="text-2xl">{current.emoji}</span><div className="min-w-0"><div className="cyber-kicker">EQUIPPED // {TOOLS.findIndex((t) => t.id === tool) + 1}/100</div><div className="font-bold">{current.name}</div></div><button onClick={() => { setMenuTab("loadout"); setMenuOpen(true); }} className="cyber-button">▦ TOOL ARMORY</button></div></div>
+      {gameStarted && <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center px-3"><div className="cyber-panel flex items-center gap-3 px-4 py-2"><span className="text-2xl">{current.emoji}</span><div className="min-w-0"><div className="cyber-kicker">EQUIPPED // {TOOLS.findIndex((t) => t.id === tool) + 1}/100</div><div className="font-bold">{current.name}</div></div><button onClick={() => { setMenuTab("loadout"); setMenuOpen(true); }} className="cyber-button">▦ TOOL ARMORY</button></div></div>
       {menuOpen && ready && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-[#050713]/75 p-3 backdrop-blur-md sm:p-8">
-          <div className="cyber-menu w-full max-w-5xl">
-            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-cyan-300/20 p-5 sm:p-7"><div><div className="cyber-kicker">NEON DISTRICT // SYSTEM ONLINE</div><h1 className="cyber-title">WHAT<span>BASH</span></h1><p className="text-xs tracking-[.25em] text-cyan-100/60">RAGDOLL MAYHEM SIMULATOR · BUILD 2099.7</p></div><button onClick={() => setMenuOpen(false)} className="cyber-button">✕ CLOSE</button></div>
+        <div className="absolute inset-0 z-40 flex items-center justify-start overflow-y-auto bg-gradient-to-r from-[#030712]/65 via-[#030712]/20 to-transparent p-3 backdrop-blur-[2px] sm:p-8">
+          <div className="cyber-menu cyber-menu-side w-full max-w-[440px]">
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-cyan-300/20 p-5 sm:p-7"><div><div className="cyber-kicker">NEON DISTRICT // SYSTEM ONLINE</div><h1 className="cyber-title">WHAT<span>BASH</span></h1><p className="text-xs tracking-[.25em] text-cyan-100/60">RAGDOLL MAYHEM SIMULATOR · BUILD 2099.7</p></div><button onClick={() => setMenuOpen(false)} className="cyber-button">✕ RESUME</button></div>
             <div className="flex flex-wrap gap-2 border-b border-cyan-300/15 p-4">{(["play","loadout","style","arenas"] as const).map((tab) => <button key={tab} onClick={() => setMenuTab(tab)} className={`cyber-tab ${menuTab===tab?"active":""}`}>{tab==="play"?"▶ PLAY":tab==="loadout"?"▦ ARMORY":tab==="style"?"◈ CHARACTER":"⌖ ARENAS"}</button>)}</div>
             <div className="min-h-[300px] p-5 sm:p-7">
-              {menuTab === "play" && <div className="grid gap-5 md:grid-cols-[1.2fr_.8fr]"><div><div className="cyber-kicker">WELCOME BACK, OPERATOR</div><h2 className="mb-3 text-3xl font-black sm:text-5xl">MAKE SOME<br/><span className="text-fuchsia-300">NOISE.</span></h2><p className="max-w-lg leading-7 text-cyan-50/65">Pick a loadout, drop into a district and turn physics into a light show. Chain impacts, trigger combos and send Buddy flying.</p><button onClick={() => setMenuOpen(false)} className="cyber-button mt-6 px-8 py-4 text-lg">▶ ENTER THE ARENA</button></div><div className="cyber-stat-grid"><div><b>{TOOLS.length}</b><span>TOOLS ONLINE</span></div><div><b>{ENVS.length}</b><span>ARENAS</span></div><div><b>{stats.kos}</b><span>KNOCKOUTS</span></div><div><b>${stats.money.toLocaleString()}</b><span>CREDITS</span></div></div></div>}
+              {menuTab === "play" && <div className="grid gap-5"><div><div className="cyber-kicker">WELCOME BACK, OPERATOR</div><h2 className="mb-3 text-3xl font-black sm:text-5xl">MAKE SOME<br/><span className="text-fuchsia-300">NOISE.</span></h2><p className="max-w-lg leading-7 text-cyan-50/65">Pick a loadout, drop into a district and turn physics into a light show. Chain impacts, trigger combos and send Buddy flying.</p><button onClick={() => { gameRef.current?.startGame(); setMenuOpen(false); setGameStarted(true); }} className="cyber-button mt-6 px-8 py-4 text-lg">▶ START GAME</button></div><div className="cyber-stat-grid"><div><b>{TOOLS.length}</b><span>TOOLS ONLINE</span></div><div><b>{ENVS.length}</b><span>MAPS ONLINE</span></div><div><b>{stats.kos}</b><span>KNOCKOUTS</span></div><div><b>${stats.money.toLocaleString()}</b><span>CREDITS</span></div></div></div>}
               {menuTab === "loadout" && <div><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><div className="cyber-kicker">100 WEAPON SYSTEMS</div><h2 className="text-2xl font-black">TOOL ARMORY</h2></div><input value={toolSearch} onChange={(e)=>setToolSearch(e.target.value)} placeholder="Search tools..." className="cyber-input w-full sm:w-64"/></div><div className="grid max-h-[48vh] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 lg:grid-cols-4">{filteredTools.map((t)=><button key={t.id} onClick={()=>{selectTool(t.id);setMenuOpen(false);}} className={`cyber-tool ${tool===t.id?"selected":""}`}><span className="text-2xl">{t.emoji}</span><span className="min-w-0 text-left"><b className="block truncate">{t.name}</b><small className="text-cyan-100/45">{t.action.toUpperCase()} CLASS</small></span><span className="ml-auto text-[10px] text-cyan-200/40">#{TOOLS.indexOf(t)+1}</span></button>)}</div><p className="mt-3 text-xs text-cyan-100/40">Choose any tool to equip it instantly. Click Buddy or props to use it.</p></div>}
               {menuTab === "style" && <div><div className="cyber-kicker">IDENTITY MOD // PROCEDURAL BUDDY</div><h2 className="mb-5 text-2xl font-black">CHARACTER CUSTOMIZATION</h2><div className="grid gap-5 sm:grid-cols-2"><label className="cyber-option">TORSO / ARMOR COLOR<input type="color" value={shirtColor} onChange={(e)=>{setShirtColor(e.target.value);applyStyle(e.target.value,hairColor);}} /></label><label className="cyber-option">HAIR / HEADGEAR COLOR<input type="color" value={hairColor} onChange={(e)=>{setHairColor(e.target.value);applyStyle(shirtColor,e.target.value);}} /></label></div><div className="mt-6 flex items-center gap-4 rounded-xl border border-cyan-200/15 bg-black/30 p-4"><div className="text-5xl">🧑‍🚀</div><div><b>LIVE COLOR SYNC</b><p className="text-sm text-cyan-100/50">Changes apply to the procedural Buddy in the active arena.</p></div></div></div>}
               {menuTab === "arenas" && <div><div className="cyber-kicker">SELECT YOUR DROP ZONE</div><h2 className="mb-4 text-2xl font-black">DISTRICT SELECT</h2><div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{ENVS.map((env)=><button key={env.id} onClick={()=>{chooseArena(env.id);setMenuOpen(false);}} className={`cyber-arena ${place.name===env.name?"selected":""}`}><span className="text-3xl">{env.emoji}</span><b>{env.name}</b><small>GRAVITY {Math.abs(env.gravity).toFixed(1)} · {env.groundKind.toUpperCase()}</small></button>)}</div></div>}
