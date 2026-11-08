@@ -151,7 +151,7 @@ export default function App() {
   useEffect(() => {
     let confirmedLeave = false;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!gameStarted || runEnded) return;
+      if (runEnded) return;
       confirmedLeave = true;
       event.preventDefault();
       event.returnValue = "";
