@@ -86,6 +86,7 @@ export class Game {
   private lensPass: ShaderPass;
   private menuMode = true;
   private cameraTransition = 1;
+  private buddySpeech: HTMLDivElement | null = null;
   private endRunElapsed = -1;
   private endRunCallback: (() => void) | null = null;
   private endRunBlastDone = false;
@@ -253,6 +254,8 @@ export class Game {
 
   dispose() {
     this.disposed = true;
+    this.buddySpeech?.remove();
+    this.buddySpeech = null;
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
     this.renderer.domElement.removeEventListener("pointerdown", this.onPointerDown, true);
@@ -288,6 +291,7 @@ export class Game {
     this.cameraTransition = 0;
     this.controls.enabled = false;
     this.following = true;
+    this.showBuddySpeech();
     this.sfx.whoosh();
   }
   endRun(onComplete: () => void) {
@@ -1067,6 +1071,34 @@ export class Game {
   };
 
   // ------------------------------------------------------------------ loop
+  private showBuddySpeech() {
+    this.buddySpeech?.remove();
+    const quotes = ["pls hemp me", "i need ai", "meow"];
+    const bubble = document.createElement("div");
+    bubble.className = "buddy-speech-3d";
+    bubble.textContent = quotes[Math.floor(Math.random() * quotes.length)];
+    this.overlay.appendChild(bubble);
+    this.buddySpeech = bubble;
+    bubble.addEventListener("animationend", () => {
+      if (this.buddySpeech === bubble) this.buddySpeech = null;
+      bubble.remove();
+    }, { once: true });
+  }
+
+  private updateBuddySpeech() {
+    const bubble = this.buddySpeech;
+    if (!bubble || !this.rag?.rb?.head) return;
+    const head = this.rag.rb.head.body.position;
+    const point = new THREE.Vector3(head.x, head.y + 0.62, head.z).project(this.camera);
+    const rect = this.container.getBoundingClientRect();
+    const x = (point.x * 0.5 + 0.5) * rect.width;
+    const y = (-point.y * 0.5 + 0.5) * rect.height;
+    const visible = point.z > -1 && point.z < 1 && x >= -80 && x <= rect.width + 80 && y >= -80 && y <= rect.height + 80;
+    bubble.style.display = visible ? "block" : "none";
+    bubble.style.left = `${x}px`;
+    bubble.style.top = `${y}px`;
+  }
+
   private loop = () => {
     if (this.disposed) return;
     this.raf = requestAnimationFrame(this.loop);
@@ -1135,6 +1167,7 @@ export class Game {
     this.env.update(rawDt);
 
     this.rag.syncVisuals();
+    this.updateBuddySpeech();
     this.updateAnims(rawDt);
     this.updateZap(dt);
 
