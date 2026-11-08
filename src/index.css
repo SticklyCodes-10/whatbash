@@ -131,4 +131,7 @@ body,
 .menu-exit{animation:menu-slide-out 1.2s cubic-bezier(.2,.8,.2,1) forwards}
 @keyframes menu-slide-out{0%{opacity:1;transform:translateX(0) scale(1);filter:blur(0)}55%{opacity:.55;transform:translateX(-28px) scale(.98);filter:blur(1px)}100%{opacity:0;transform:translateX(-90px) scale(.94);filter:blur(8px)}}
 @media(max-width:640px){.cyber-menu-side{max-height:94vh;max-width:calc(100vw - 24px)}.cyber-menu-side .cyber-stat-grid b{font-size:24px}}
-\n/* Subtle pincushion-inspired treatment lives on the page perimeter, not over gameplay. */\n.site-lens-frame{isolation:isolate}\n.site-lens-frame:after{content:"";position:absolute;inset:0;z-index:60;pointer-events:none;border:1px solid rgba(103,232,249,.16);border-radius:clamp(8px,1.2vw,18px);box-shadow:inset 0 0 26px rgba(0,0,0,.22),inset 0 0 8px rgba(34,211,238,.10),0 0 18px rgba(34,211,238,.08);background:radial-gradient(ellipse at center,transparent 76%,rgba(2,6,23,.12) 100%)}\n
+
+/* Subtle pincushion-inspired treatment lives on the page perimeter, not over gameplay. */
+.site-lens-frame{isolation:isolate}
+.site-lens-frame:after{content:"";position:absolute;inset:0;z-index:60;pointer-events:none;border:1px solid rgba(103,232,249,.16);border-radius:clamp(8px,1.2vw,18px);box-shadow:inset 0 0 26px rgba(0,0,0,.22),inset 0 0 8px rgba(34,211,238,.10),0 0 18px rgba(34,211,238,.08);background:radial-gradient(ellipse at center,transparent 76%,rgba(2,6,23,.12) 100%)}
