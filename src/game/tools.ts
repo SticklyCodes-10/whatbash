@@ -1,14 +1,4 @@
-export type ToolId =
-  | "boot"
-  | "fist"
-  | "bat"
-  | "hammer"
-  | "bomb"
-  | "rocket"
-  | "cannon"
-  | "anvil"
-  | "zap"
-  | "grab";
+export type ToolId = string;
 
 export interface ToolDef {
   id: ToolId;
