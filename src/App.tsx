@@ -164,7 +164,7 @@ export default function App() {
 
   useEffect(() => {
     if (!roomState || !gameStarted) return;
-    const timer = window.setInterval(() => { const snapshot = gameRef.current?.getBuddySnapshot(); if (snapshot) roomRef.current?.sendSnapshot(snapshot); }, 80);
+    const timer = window.setInterval(() => { const snapshot = gameRef.current?.getBuddySnapshot(); if (snapshot) roomRef.current?.sendSnapshot(snapshot); }, 50);
     return () => window.clearInterval(timer);
   }, [roomState, gameStarted]);
 
