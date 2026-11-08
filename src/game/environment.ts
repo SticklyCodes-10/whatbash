@@ -187,6 +187,15 @@ export const ENVS: EnvDef[] = [
   },
 ];
 
+
+ENVS.push(
+  { ...ENVS.find((e) => e.id === "neon")!, id: "nightcity", name: "Night City", emoji: "🌃", skyTop: 0x050514, skyBottom: 0x261044, ground: 0x100b20, ground2: 0x00e5ff, groundKind: "grid", decor: "neon", neon: true, stars: true, palette: [0xff2bd6, 0x22d3ee, 0x9d4edd, 0xf72585] },
+  { ...ENVS.find((e) => e.id === "desert")!, id: "volcano", name: "Volcanic Rift", emoji: "🌋", skyTop: 0x260909, skyBottom: 0xc2410c, ground: 0x292524, ground2: 0x7f1d1d, groundKind: "speckle", decor: "craters", sun: 0xff5a1f, sunI: 3.2, palette: [0xff3d00, 0xff9100, 0xffd000, 0x991b1b] },
+  { ...ENVS.find((e) => e.id === "moon")!, id: "orbital", name: "Orbital Station", emoji: "🛰️", skyTop: 0x020617, skyBottom: 0x172554, ground: 0x334155, ground2: 0x0e7490, groundKind: "grid", gravity: -4.2, decor: "neon", stars: true, palette: [0x38bdf8, 0xa78bfa, 0xe2e8f0, 0x22d3ee] },
+  { ...ENVS.find((e) => e.id === "beach")!, id: "toxic", name: "Toxic Swamp", emoji: "☣️", skyTop: 0x132a13, skyBottom: 0x4f772d, ground: 0x31572c, ground2: 0x90a955, groundKind: "speckle", decor: "junk", friction: 0.25, palette: [0x9ef01a, 0x70e000, 0x38b000, 0x007f5f] },
+  { ...ENVS.find((e) => e.id === "snow")!, id: "crystal", name: "Crystal Cavern", emoji: "💎", skyTop: 0x082f49, skyBottom: 0x164e63, ground: 0x164e63, ground2: 0x67e8f9, groundKind: "stripes", decor: "pines", palette: [0x67e8f9, 0xc4b5fd, 0xf0abfc, 0xffffff] }
+);
+
 export interface DynObj {
   mesh: THREE.Object3D;
   body: CANNON.Body;
