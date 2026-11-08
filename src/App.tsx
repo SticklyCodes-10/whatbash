@@ -42,6 +42,9 @@ export default function App() {
   const runStartedAt = useRef<number>(Date.now());
   const [menuTab, setMenuTab] = useState<"play" | "style" | "arenas" | "multiplayer">(savedGame.menuTab === "style" || savedGame.menuTab === "arenas" ? savedGame.menuTab : "play");
   const [armoryOpen, setArmoryOpen] = useState(false);
+  const [radiatorPrompt, setRadiatorPrompt] = useState(false);
+  const [radiatorStage, setRadiatorStage] = useState<"boot" | "space" | null>(null);
+  const radiatorTimers = useRef<number[]>([]);
   const roomRef = useRef<PeerRoom | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [roomStatus, setRoomStatus] = useState("");
@@ -126,6 +129,7 @@ export default function App() {
         onPlace: (name, emoji) => setPlace({ name, emoji }),
         onModel: (text, custom) => setModel({ text, custom }),
         onReady: () => setReady(true),
+        onRadiator: () => setRadiatorPrompt(true),
       });
     } catch (e) {
       console.error(e);
@@ -229,6 +233,13 @@ export default function App() {
     gameRef.current?.setTool(id);
   }, []);
 
+  const initializeRadiator = () => {
+    setRadiatorPrompt(false); setRadiatorStage("boot");
+    radiatorTimers.current.forEach(window.clearTimeout);
+    radiatorTimers.current=[window.setTimeout(()=>{setRadiatorStage("space");gameRef.current?.startRadiatorCutscene(()=>setRadiatorStage(null));},3800)];
+  };
+  useEffect(() => () => radiatorTimers.current.forEach(window.clearTimeout), []);
+
   const newPlace = useCallback(() => gameRef.current?.newPlace(), []);
   const chooseArena = useCallback((id: string) => {
     if (roomRef.current?.state && !roomRef.current.owner) return;
@@ -315,8 +326,8 @@ export default function App() {
         </div>
       )}
 
-      {gameStarted && !runEnded && <><button onClick={() => setArmoryOpen(true)} className="cyber-menu-trigger absolute right-3 bottom-36 z-20 sm:right-5">▦ ARMORY</button><button onClick={() => { setMenuTab("play"); setMenuOpen(true); }} className="cyber-menu-trigger absolute right-3 bottom-28 z-20 sm:right-5">☰ MENU</button><button onClick={endRun} className="end-run-button absolute right-3 bottom-16 z-20 sm:right-5">☠ END RUN</button></>}
-      {gameStarted && !endingRun && !runEnded && <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-2 sm:left-4 sm:top-4">
+      {gameStarted && !runEnded && radiatorStage === null && <><button onClick={() => setArmoryOpen(true)} className="cyber-menu-trigger absolute right-3 bottom-36 z-20 sm:right-5">▦ ARMORY</button><button onClick={() => { setMenuTab("play"); setMenuOpen(true); }} className="cyber-menu-trigger absolute right-3 bottom-28 z-20 sm:right-5">☰ MENU</button><button onClick={endRun} className="end-run-button absolute right-3 bottom-16 z-20 sm:right-5">☠ END RUN</button></>}
+      {gameStarted && !endingRun && !runEnded && radiatorStage === null && <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-2 sm:left-4 sm:top-4">
         <div className="pointer-events-auto flex items-center gap-2">
           <div className="flex items-center gap-2 rounded-2xl border-2 border-white/30 bg-black/45 px-3 py-1.5 text-sm font-semibold backdrop-blur sm:text-base">
             <span className="text-xl">{place.emoji}</span>
@@ -333,7 +344,7 @@ export default function App() {
       </div>}
 
       {/* Top-right: score */}
-      {gameStarted && !endingRun && !runEnded && <div className="pointer-events-none absolute right-3 top-3 z-10 flex w-56 flex-col items-end gap-2 sm:right-4 sm:top-4 sm:w-72">
+      {gameStarted && !endingRun && !runEnded && radiatorStage === null && <div className="pointer-events-none absolute right-3 top-3 z-10 flex w-56 flex-col items-end gap-2 sm:right-4 sm:top-4 sm:w-72">
         <div className="flex items-center gap-2">
           {stats.kos > 0 && (
             <div className="rounded-xl bg-red-600/90 px-2 py-1 text-sm font-bold">💀 {stats.kos}</div>
@@ -365,7 +376,7 @@ export default function App() {
       </div>}
 
       {/* Left: toggles */}
-      {gameStarted && !endingRun && !runEnded && <div className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2 sm:left-4">
+      {gameStarted && !endingRun && !runEnded && radiatorStage === null && <div className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2 sm:left-4">
         <SideBtn label="Reset buddy (R)" on={false} onClick={reset}>🔄</SideBtn>
         <SideBtn
           label="Buddy tries to stand up"
@@ -433,7 +444,7 @@ export default function App() {
         </div>
       )*/}
 
-      {gameStarted && !endingRun && !runEnded && <div className="absolute inset-x-0 bottom-2 z-20 flex justify-center px-2"><div className="weapon-hotbar">{loadout.map((id, index) => { const item = TOOLS.find((entry) => entry.id === id) ?? TOOLS[0]; const keyLabel = index === 9 ? "0" : String(index + 1); return <button key={index} onClick={() => selectTool(id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const dropped = e.dataTransfer.getData("text/tool-id"); if (TOOLS.some((entry) => entry.id === dropped)) { setLoadout((old) => old.map((value, slot) => slot === index ? dropped : value)); selectTool(dropped); } }} className={`weapon-slot ${tool === id ? "active" : ""}`} title={`${keyLabel} · ${item.name}`}><small>{keyLabel}</small><span>{item.emoji}</span></button>; })}</div></div>}
+      {gameStarted && !endingRun && !runEnded && radiatorStage === null && <div className="absolute inset-x-0 bottom-2 z-20 flex justify-center px-2"><div className="weapon-hotbar">{loadout.map((id, index) => { const item = TOOLS.find((entry) => entry.id === id) ?? TOOLS[0]; const keyLabel = index === 9 ? "0" : String(index + 1); return <button key={index} onClick={() => selectTool(id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const dropped = e.dataTransfer.getData("text/tool-id"); if (TOOLS.some((entry) => entry.id === dropped)) { setLoadout((old) => old.map((value, slot) => slot === index ? dropped : value)); selectTool(dropped); } }} className={`weapon-slot ${tool === id ? "active" : ""}`} title={`${keyLabel} · ${item.name}`}><small>{keyLabel}</small><span>{item.emoji}</span></button>; })}</div></div>}
       {menuOpen && ready && !endingRun && !runEnded && (
         <div className="absolute inset-0 z-40 flex items-center justify-start overflow-y-auto bg-gradient-to-r from-[#030712]/65 via-[#030712]/20 to-transparent p-3 backdrop-blur-[2px] sm:p-8">
           <div className={`cyber-menu cyber-menu-side w-full max-w-[440px] ${menuLeaving ? "menu-exit" : ""}`}>
@@ -457,7 +468,9 @@ export default function App() {
       )}
 
 
-      {armoryOpen && gameStarted && !endingRun && !runEnded && <div className="absolute inset-0 z-[55] flex items-center justify-center bg-slate-950/80 p-3 backdrop-blur-md"><section className="cyber-menu cyber-armory w-full max-w-4xl p-4 sm:p-6"><header className="mb-4 flex items-center justify-between gap-3 border-b border-cyan-300/20 pb-4"><div><div className="cyber-kicker">FIELD EQUIPMENT // 100 SYSTEMS</div><h2 className="text-2xl font-black sm:text-3xl">TOOL ARMORY</h2><p className="text-xs text-cyan-100/50">Drag a weapon onto a numbered slot to equip it.</p></div><button aria-label="Close armory" title="Close armory" onClick={() => setArmoryOpen(false)} className="cyber-close">✕</button></header><input value={toolSearch} onChange={(e)=>setToolSearch(e.target.value)} placeholder="Search all 100 tools..." className="cyber-input mb-3 w-full"/><div className="grid max-h-[52vh] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 lg:grid-cols-4">{filteredTools.map((t)=><button key={t.id} draggable onDragStart={(e)=>e.dataTransfer.setData("text/tool-id",t.id)} onClick={()=>selectTool(t.id)} className={`cyber-tool ${tool===t.id?"selected":""}`}><span className="text-2xl">{t.emoji}</span><span className="min-w-0 text-left"><b className="block truncate">{t.name}</b><small className="text-cyan-100/45">{t.action.toUpperCase()} CLASS</small></span><span className="ml-auto text-[10px] text-cyan-200/40">#{TOOLS.indexOf(t)+1}</span></button>)}</div><div className="mt-4 flex flex-wrap gap-2">{loadout.map((id,index)=>{const item=TOOLS.find((entry)=>entry.id===id)??TOOLS[0];const label=index===9?"0":String(index+1);return <div key={index} onDragOver={(e)=>e.preventDefault()} onDrop={(e)=>{e.preventDefault();const dropped=e.dataTransfer.getData("text/tool-id");if(TOOLS.some((entry)=>entry.id===dropped)){setLoadout(old=>old.map((value,slot)=>slot===index?dropped:value));selectTool(dropped);}}} className="weapon-slot armory-slot"><small>{label}</small><span>{item.emoji}</span><b>{item.name}</b></div>})}</div></section></div>}
+      {armoryOpen && gameStarted && !endingRun && !runEnded && radiatorStage === null && <div className="absolute inset-0 z-[55] flex items-center justify-center bg-slate-950/80 p-3 backdrop-blur-md"><section className="cyber-menu cyber-armory w-full max-w-4xl p-4 sm:p-6"><header className="mb-4 flex items-center justify-between gap-3 border-b border-cyan-300/20 pb-4"><div><div className="cyber-kicker">FIELD EQUIPMENT // 100 SYSTEMS</div><h2 className="text-2xl font-black sm:text-3xl">TOOL ARMORY</h2><p className="text-xs text-cyan-100/50">Drag a weapon onto a numbered slot to equip it.</p></div><button aria-label="Close armory" title="Close armory" onClick={() => setArmoryOpen(false)} className="cyber-close">✕</button></header><input value={toolSearch} onChange={(e)=>setToolSearch(e.target.value)} placeholder="Search all 100 tools..." className="cyber-input mb-3 w-full"/><div className="grid max-h-[52vh] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 lg:grid-cols-4">{filteredTools.map((t)=><button key={t.id} draggable onDragStart={(e)=>e.dataTransfer.setData("text/tool-id",t.id)} onClick={()=>selectTool(t.id)} className={`cyber-tool ${tool===t.id?"selected":""}`}><span className="text-2xl">{t.emoji}</span><span className="min-w-0 text-left"><b className="block truncate">{t.name}</b><small className="text-cyan-100/45">{t.action.toUpperCase()} CLASS</small></span><span className="ml-auto text-[10px] text-cyan-200/40">#{TOOLS.indexOf(t)+1}</span></button>)}</div><div className="mt-4 flex flex-wrap gap-2">{loadout.map((id,index)=>{const item=TOOLS.find((entry)=>entry.id===id)??TOOLS[0];const label=index===9?"0":String(index+1);return <div key={index} onDragOver={(e)=>e.preventDefault()} onDrop={(e)=>{e.preventDefault();const dropped=e.dataTransfer.getData("text/tool-id");if(TOOLS.some((entry)=>entry.id===dropped)){setLoadout(old=>old.map((value,slot)=>slot===index?dropped:value));selectTool(dropped);}}} className="weapon-slot armory-slot"><small>{label}</small><span>{item.emoji}</span><b>{item.name}</b></div>})}</div></section></div>}
+      {radiatorPrompt && <div className="absolute inset-0 z-[85] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"><section className="radiator-terminal w-full max-w-lg p-6 sm:p-8"><div className="cyber-kicker">ROOT ACCESS // ORBITAL WEAPON CONTROL</div><h2 className="mt-3 text-3xl font-black tracking-[.12em] text-orange-300">RADIATOR PROTOCOL</h2><p className="mt-4 text-sm leading-relaxed text-cyan-50/75">Initialize the orbital thermal array? This will trigger a full cinematic discharge and ignite the current arena.</p><div className="mt-3 border-y border-orange-300/20 py-3 font-mono text-xs text-orange-200/70">WARNING: PLANETARY SURFACE TEMPERATURE WILL EXCEED SAFE LIMITS.</div><div className="mt-6 flex gap-3"><button onClick={initializeRadiator} className="radiator-yes flex-1 py-3">YES // INITIALIZE</button><button onClick={() => setRadiatorPrompt(false)} className="radiator-no flex-1 py-3">NO // ABORT</button></div></section></div>}
+      {radiatorStage === "boot" && <div className="absolute inset-0 z-[80] flex items-start justify-end p-5 sm:p-8"><section className="radiator-terminal w-full max-w-md p-4 sm:p-6"><div className="text-right font-mono text-xs font-bold tracking-[.22em] text-orange-300">INIZIALIZING RADIATOR....</div><div className="my-3 h-px bg-cyan-300/25"/><pre className="radiator-ascii my-4 text-center text-[8px] leading-[1.1] sm:text-[10px]">{" ____    _    ____ ___    _  _____ ___  ____\n|  _ \\  / \\  |  _ \\_ _|  / \\|_   _/ _ \\|  _ \\n| |_) |/ _ \\ | | | | |  / _ \\ | || | | | |_) |\n|  _ </ ___ \\| |_| | | / ___ \\| || |_| |  _ <\n|_| \\_/_/   \\_\\____/___/_/   \\_\\_| \\___/|_| \\_\\"}</pre><div className="text-center font-mono text-xs tracking-[.4em] text-amber-300">[ WAIT ]</div><div className="mt-4 text-right font-mono text-xs text-emerald-300">CORE LINK: SUCCESS ✓</div></section></div>}
       {endingRun && <div className="end-run-glitch absolute inset-0 z-[70] pointer-events-none"><div className="end-run-scanlines" /><div className="end-run-flash" /><div className="absolute inset-0 flex items-center justify-center"><div className="title-font text-5xl sm:text-8xl tracking-widest text-red-100 glitch-label">404: END</div></div></div>}
       {runEnded && runSummary && <div className="absolute inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-[#05030b]/95 p-4 backdrop-blur-xl"><div className="end-summary w-full max-w-xl p-6 sm:p-9"><div className="cyber-kicker">SESSION TERMINATED // FINAL REPORT</div><h2 className="title-font my-3 text-6xl tracking-widest text-red-300 sm:text-8xl">404: END</h2><p className="mb-6 text-sm tracking-[.2em] text-cyan-100/55">BUDDY HAS LEFT THE CHAT.</p><div className="grid grid-cols-2 gap-3"><div><b>${runSummary.money.toLocaleString()}</b><span>CREDITS EARNED</span></div><div><b>{runSummary.kos}</b><span>KNOCKOUTS</span></div><div><b>{Math.round(runSummary.pain)}%</b><span>FINAL PAIN</span></div><div><b>{Math.floor((Date.now()-runStartedAt.current)/60000)}m {Math.floor(((Date.now()-runStartedAt.current)/1000)%60)}s</b><span>RUN DURATION</span></div></div><div className="mt-7 flex flex-wrap gap-3"><button onClick={() => window.location.reload()} className="cyber-button px-6 py-3">↻ NEW SESSION</button><span className="self-center text-xs text-cyan-100/40">Run ended. No save prompt will appear.</span></div></div></div>}
     </div>
