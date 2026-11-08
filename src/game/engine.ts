@@ -22,6 +22,8 @@ export interface Stats {
   kos: number;
 }
 
+export interface RemotePlayerPose { id: string; name: string; color: string; bodies: BuddyBodySave[] }
+
 export interface GameCallbacks {
   onStats: (s: Stats) => void;
   onPlace: (name: string, emoji: string) => void;
@@ -138,6 +140,7 @@ export class Game {
   private kos = 0;
   private lastHit = -10;
   private customActive = false;
+  private remoteAvatars = new Map<string, { group: THREE.Group; parts: Map<string, THREE.Mesh> }>();
 
   constructor(
     private container: HTMLElement,
@@ -257,6 +260,7 @@ export class Game {
     this.disposed = true;
     this.buddySpeech?.remove();
     this.buddySpeech = null;
+    this.setRemotePlayers([]);
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
     this.renderer.domElement.removeEventListener("pointerdown", this.onPointerDown, true);
@@ -304,6 +308,46 @@ export class Game {
     this.controls.enabled = false;
     this.sfx.whoosh();
   }
+
+  setRemotePlayers(players: RemotePlayerPose[]) {
+    const active = new Set(players.map((player) => player.id));
+    for (const [id, avatar] of this.remoteAvatars) {
+      if (!active.has(id)) {
+        this.scene.remove(avatar.group);
+        avatar.group.traverse((node) => {
+          const mesh = node as THREE.Mesh;
+          if (mesh.isMesh) { mesh.geometry.dispose(); const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]; materials.forEach((material) => material.dispose()); }
+        });
+        this.remoteAvatars.delete(id);
+      }
+    }
+    for (const player of players) {
+      let avatar = this.remoteAvatars.get(player.id);
+      if (!avatar) {
+        const group = new THREE.Group();
+        const parts = new Map<string, THREE.Mesh>();
+        for (const body of player.bodies) {
+          const material = new THREE.MeshStandardMaterial({ color: player.color, roughness: 0.52, metalness: 0.12, emissive: player.color, emissiveIntensity: 0.06 });
+          const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), material);
+          const scale = body.key === "head" ? [0.17, 0.17, 0.17] : body.key === "chest" ? [0.23, 0.31, 0.14] : body.key === "pelvis" ? [0.19, 0.15, 0.13] : body.key.toLowerCase().includes("arm") ? [0.085, 0.21, 0.085] : [0.095, 0.23, 0.095];
+          mesh.scale.set(scale[0], scale[1], scale[2]);
+          mesh.castShadow = true;
+          group.add(mesh);
+          parts.set(body.key, mesh);
+        }
+        this.scene.add(group);
+        avatar = { group, parts };
+        this.remoteAvatars.set(player.id, avatar);
+      }
+      for (const body of player.bodies) {
+        const mesh = avatar.parts.get(body.key);
+        if (!mesh) continue;
+        mesh.position.set(body.position[0], body.position[1], body.position[2]);
+        mesh.quaternion.set(body.quaternion[0], body.quaternion[1], body.quaternion[2], body.quaternion[3]);
+      }
+    }
+  }
+
   getBuddySnapshot(): BuddyBodySave[] {
     if (!this.rag) return [];
     return this.rag.list.map(({ key, body }) => ({
