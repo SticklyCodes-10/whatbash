@@ -20,5 +20,8 @@ export const TOOLS: ToolDef[] = [
   { id: "anvil", name: "Anvil", emoji: "⚒️", hint: "Drops an anvil from the sky.", color: "#475569", action: "anvil" },
   { id: "zap", name: "Zapper", emoji: "⚡", hint: "Electrocute the buddy!", color: "#eab308", action: "zap" },
   { id: "grab", name: "Grab", emoji: "✋", hint: "Drag him around & throw him.", color: "#10b981", action: "grab" },
-  { id: "radiator", name: "RADIATOR", emoji: "☢️", hint: "A catastrophic orbital heat event. Click Buddy to initialize.", color: "#ff5b24", action: "radiator" }
+  { id: "radiator", name: "RADIATOR", emoji: "☢️", hint: "A catastrophic orbital heat event. Click Buddy to initialize.", color: "#ff5b24", action: "radiator" },
+  { id: "acid", name: "ACID", emoji: "🧪", hint: "Splash corrosive green acid onto Buddy.", color: "#a3e635", action: "acid" },
+  { id: "knife", name: "KNIFE", emoji: "🔪", hint: "A sharp custom-model blade.", color: "#cbd5e1", action: "knife" },
+  { id: "wl201", name: "WL-201", emoji: "💉", hint: "Experimental injection. Buddy may feel weird.", color: "#c084fc", action: "wl201" }
 ];
