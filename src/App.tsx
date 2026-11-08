@@ -6,29 +6,29 @@ import { ENVS } from "./game/environment";
 import type { ToolId } from "./game/tools";
 import { cn } from "./utils/cn";
 
-export default function App() {
+type SavedGame = { version: 1; stats: Stats; tool: ToolId; placeName: string; shirtColor: string; hairColor: string; stand: boolean; slow: boolean; sound: boolean; follow: boolean; showHelp: boolean; menuTab: "play" | "loadout" | "style" | "arenas" };\nconst SAVE_KEY = "whatbash-save-v1";\nfunction readSave(): Partial<SavedGame> {\n  try { const raw = localStorage.getItem(SAVE_KEY); return raw ? JSON.parse(raw) as Partial<SavedGame> : {}; } catch { return {}; }\n}\n\nexport default function App() {
   const mountRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
 
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(false);\n  const [savedGame] = useState<Partial<SavedGame>>(readSave);
   const [error, setError] = useState<string | null>(null);
-  const [tool, setToolState] = useState<ToolId>("boot");
-  const [stats, setStats] = useState<Stats>({ money: 0, pain: 0, combo: 0, kos: 0 });
-  const [place, setPlace] = useState({ name: "…", emoji: "🎲" });
+  const [tool, setToolState] = useState<ToolId>(() => savedGame.tool ?? "boot");
+  const [stats, setStats] = useState<Stats>(() => savedGame.stats ?? { money: 0, pain: 0, combo: 0, kos: 0 });
+  const [place, setPlace] = useState({ name: savedGame.placeName ?? "…", emoji: "🎲" });
   const [model, setModel] = useState<{ text: string; custom: boolean } | null>(null);
-  const [stand, setStand] = useState(true);
-  const [slow, setSlow] = useState(false);
-  const [sound, setSound] = useState(true);
-  const [follow, setFollow] = useState(true);
-  const [showHelp, setShowHelp] = useState(true);
+  const [stand, setStand] = useState(savedGame.stand ?? true);
+  const [slow, setSlow] = useState(savedGame.slow ?? false);
+  const [sound, setSound] = useState(savedGame.sound ?? true);
+  const [follow, setFollow] = useState(savedGame.follow ?? true);
+  const [showHelp, setShowHelp] = useState(savedGame.showHelp ?? true);
   const [menuOpen, setMenuOpen] = useState(true);
   const [gameStarted, setGameStarted] = useState(false);
   const [menuLeaving, setMenuLeaving] = useState(false);
-  const [menuTab, setMenuTab] = useState<"play" | "loadout" | "style" | "arenas">("play");
+  const [menuTab, setMenuTab] = useState<"play" | "loadout" | "style" | "arenas">(savedGame.menuTab ?? "play");
   const [toolSearch, setToolSearch] = useState("");
-  const [shirtColor, setShirtColor] = useState("#2fd3cb");
-  const [hairColor, setHairColor] = useState("#2a1a12");
+  const [shirtColor, setShirtColor] = useState(savedGame.shirtColor ?? "#2fd3cb");
+  const [hairColor, setHairColor] = useState(savedGame.hairColor ?? "#2a1a12");
   const [musicTracks, setMusicTracks] = useState<string[]>([]);
   const [musicPlaying, setMusicPlaying] = useState(false);
   const musicRef = useRef<HTMLAudioElement | null>(null);
@@ -115,7 +115,7 @@ export default function App() {
     };
   }, []);
 
-  const selectTool = useCallback((id: ToolId) => {
+\n  useEffect(() => {\n    if (!ready) return;\n    gameRef.current?.setTool(tool);\n    gameRef.current?.setStand(stand);\n    gameRef.current?.setSlowmo(slow);\n    gameRef.current?.setSound(sound);\n    gameRef.current?.setFollow(follow);\n    gameRef.current?.setBuddyColors(shirtColor, hairColor);\n    const savedArena = ENVS.find((env) => env.name === savedGame.placeName);\n    if (savedArena) gameRef.current?.selectEnvironment(savedArena.id);\n  // Restore the saved configuration once the 3D scene is ready.\n  // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [ready]);\n\n  useEffect(() => {\n    const snapshot: SavedGame = { version: 1, stats, tool, placeName: place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab };\n    try { localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot)); } catch (err) { console.warn("WHATBASH could not save this browser's local save data.", err); }\n  }, [stats, tool, place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab]);\n\n  const selectTool = useCallback((id: ToolId) => {
     setToolState(id);
     gameRef.current?.setTool(id);
   }, []);
@@ -288,7 +288,7 @@ export default function App() {
       {menuOpen && ready && (
         <div className="absolute inset-0 z-40 flex items-center justify-start overflow-y-auto bg-gradient-to-r from-[#030712]/65 via-[#030712]/20 to-transparent p-3 backdrop-blur-[2px] sm:p-8">
           <div className={`cyber-menu cyber-menu-side w-full max-w-[440px] ${menuLeaving ? "menu-exit" : ""}`}>
-            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-cyan-300/20 p-5 sm:p-7"><div><div className="cyber-kicker">NEON DISTRICT // SYSTEM ONLINE</div><h1 className="cyber-title">WHAT<span>BASH</span></h1><p className="text-xs tracking-[.25em] text-cyan-100/60">RAGDOLL MAYHEM SIMULATOR · BUILD 2099.7</p></div><button onClick={() => setMenuOpen(false)} className="cyber-button">✕ RESUME</button></div>
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-cyan-300/20 p-5 sm:p-7"><div><div className="cyber-kicker">NEON DISTRICT // SYSTEM ONLINE</div><h1 className="cyber-title">WHAT<span>BASH</span></h1><p className="text-xs tracking-[.25em] text-cyan-100/60">RAGDOLL MAYHEM SIMULATOR · BUILD 2099.7</p></div><div className="text-right"><div className="text-[10px] font-black tracking-[.2em] text-emerald-300">● AUTO-SAVE ON</div><div className="text-[9px] tracking-wider text-cyan-100/40">THIS DEVICE</div></div></div>
             <div className="flex flex-wrap gap-2 border-b border-cyan-300/15 p-4">{(["play","loadout","style","arenas"] as const).map((tab) => <button key={tab} onClick={() => setMenuTab(tab)} className={`cyber-tab ${menuTab===tab?"active":""}`}>{tab==="play"?"▶ PLAY":tab==="loadout"?"▦ ARMORY":tab==="style"?"◈ CHARACTER":"⌖ ARENAS"}</button>)}</div>
             <div className="min-h-[300px] p-5 sm:p-7">
               {menuTab === "play" && <div className="grid gap-5"><div><div className="cyber-kicker">WELCOME BACK, OPERATOR</div><h2 className="mb-3 text-3xl font-black sm:text-5xl">MAKE SOME<br/><span className="text-fuchsia-300">NOISE.</span></h2><p className="max-w-lg leading-7 text-cyan-50/65">Pick a loadout, drop into a district and turn physics into a light show. Chain impacts, trigger combos and send Buddy flying.</p><button onClick={() => { if (gameStarted) { setMenuOpen(false); return; } gameRef.current?.startGame(); setMenuLeaving(true); window.setTimeout(() => { setMenuOpen(false); setGameStarted(true); setMenuLeaving(false); }, 1250); }} className="cyber-button mt-6 px-8 py-4 text-lg">{gameStarted ? "▶ RESUME GAME" : "▶ START GAME"}</button></div><div className="cyber-stat-grid"><div><b>{TOOLS.length}</b><span>TOOLS ONLINE</span></div><div><b>{ENVS.length}</b><span>MAPS ONLINE</span></div><div><b>{stats.kos}</b><span>KNOCKOUTS</span></div><div><b>${stats.money.toLocaleString()}</b><span>CREDITS</span></div></div></div>}
