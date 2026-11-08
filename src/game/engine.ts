@@ -102,6 +102,13 @@ export class Game {
   private endRunCallback: (() => void) | null = null;
   private endRunBlastDone = false;
   private radiatorElapsed = -1;
+  private animeFightElapsed = -1;
+  private animeFightDone: (() => void) | null = null;
+  private animeOpponent: Ragdoll | null = null;
+  private animeFightObjects: THREE.Object3D[] = [];
+  private animeNextHit = 0;
+  private animeHitCount = 0;
+  private animeStatsTimer = 0;
   private radiatorDone: (() => void) | null = null;
   private radiatorObjects: THREE.Object3D[] = [];
   private radiatorEarth: THREE.Mesh | null = null;
@@ -317,6 +324,208 @@ export class Game {
   }
 
   // ------------------------------------------------------------ public API
+  startAnimeFight(onComplete: () => void) {
+    if (this.animeFightElapsed >= 0 || !this.rag) return;
+    this.animeFightElapsed = 0;
+    this.animeFightDone = onComplete;
+    this.animeNextHit = 2.7;
+    this.animeHitCount = 0;
+    this.animeStatsTimer = 0;
+    this.following = false;
+    this.controls.enabled = false;
+    this.buddySpeech && (this.buddySpeech.style.display = "none");
+    const center = this.rag.center(new THREE.Vector3());
+    this.rag.reset(center.clone().add(new THREE.Vector3(-1.35, 0.03, 0)));
+    this.rag.stand = 1;
+    const rival = new Ragdoll(this.world, defaultJoints());
+    buildProceduralBuddy(rival, rival.joints);
+    rival.reset(center.clone().add(new THREE.Vector3(1.35, 0.03, 0)));
+    rival.stand = 1;
+    rival.root.traverse((node) => {
+      const mesh = node as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const material of materials) {
+        const colored = material as THREE.MeshStandardMaterial;
+        if (colored.color) {
+          colored.color.set(0xb91c3b);
+          colored.emissive?.set(0x3d0714);
+          colored.emissiveIntensity = 0.22;
+        }
+      }
+    });
+    this.scene.add(rival.root);
+    this.animeOpponent = rival;
+    this.animeFightObjects = [];
+    this.animeFightObjects.push(new THREE.AmbientLight(0x91baff, 0.65));
+    const rim = new THREE.SpotLight(0x7dd3fc, 95, 24, Math.PI / 3, 0.55, 1.2);
+    rim.position.copy(center).add(new THREE.Vector3(-4, 9, 4));
+    rim.target.position.copy(center);
+    this.scene.add(rim, rim.target);
+    this.animeFightObjects.push(rim);
+    this.sfx.whoosh();
+    this.popup("ANIME FIGHT // BEGIN", center.clone().add(new THREE.Vector3(0, 2.5, 0)), "combo");
+  }
+
+  private clearAnimeFight() {
+    if (this.animeOpponent) {
+      this.scene.remove(this.animeOpponent.root);
+      for (const part of this.animeOpponent.list) this.world.removeBody(part.body);
+      this.animeOpponent.root.traverse((node) => {
+        const mesh = node as THREE.Mesh;
+        if (mesh.isMesh) {
+          mesh.geometry.dispose();
+          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          materials.forEach((material) => material.dispose());
+        }
+      });
+      this.animeOpponent = null;
+    }
+    for (const object of this.animeFightObjects) {
+      this.scene.remove(object);
+      object.traverse?.((node) => {
+        const mesh = node as THREE.Mesh;
+        if (mesh.isMesh || (node as THREE.Points).isPoints) {
+          mesh.geometry?.dispose?.();
+          const material = (node as THREE.Mesh).material;
+          if (Array.isArray(material)) material.forEach((m) => m.dispose());
+          else material?.dispose?.();
+        }
+      });
+    }
+    this.animeFightObjects = [];
+  }
+
+  private updateAnimeFight(dt: number) {
+    if (this.animeFightElapsed < 0 || !this.animeOpponent) return;
+    const t = this.animeFightElapsed;
+    this.animeFightElapsed += dt;
+    const rival = this.animeOpponent;
+    const buddy = this.rag.center(new THREE.Vector3());
+    const foe = rival.center(new THREE.Vector3());
+    const midpoint = buddy.clone().add(foe).multiplyScalar(0.5);
+    const smooth = (v: number) => { const x = THREE.MathUtils.clamp(v, 0, 1); return x * x * (3 - 2 * x); };
+    const approach = (from: THREE.Vector3, to: THREE.Vector3, a: number, b: number) =>
+      this.camera.position.lerpVectors(from, to, smooth((t - a) / (b - a)));
+
+    if (t < 2.7) {
+      this.camera.position.lerp(midpoint.clone().add(new THREE.Vector3(0, 2.3, 8.5)), 1 - Math.exp(-2.5 * dt));
+      this.controls.target.lerp(midpoint.clone().add(new THREE.Vector3(0, 0.7, 0)), 1 - Math.exp(-3 * dt));
+      this.rag.stand = Math.min(1, this.rag.stand + dt * 2);
+      rival.stand = Math.min(1, rival.stand + dt * 2);
+      if (t > 1.3 && Math.random() < 0.16) this.fx.burst(midpoint.clone().add(new THREE.Vector3(rnd(-1,1), 1.3, rnd(-1,1))), 2, 0.7, [0x9deaff,0xffffff], 0.3, 0.5);
+    } else if (t < 5.2) {
+      const direction = foe.clone().sub(buddy).setY(0).normalize();
+      const pelvis = this.rag.rb.pelvis.body;
+      pelvis.applyForce(new CANNON.Vec3(direction.x * 105, 18, direction.z * 105));
+      this.rag.rb.fArmA.body.applyImpulse(new CANNON.Vec3(direction.x * 3, 1.4, direction.z * 3));
+      this.camera.position.lerp(midpoint.clone().add(new THREE.Vector3(-3.5, 2.5, 6.5)), 1 - Math.exp(-4 * dt));
+      this.controls.target.lerp(midpoint, 1 - Math.exp(-4 * dt));
+      this.shake = Math.max(this.shake, 0.18);
+    } else if (t < 22.5) {
+      const direction = foe.clone().sub(buddy).setY(0).normalize();
+      this.animeNextHit -= dt;
+      if (this.animeNextHit <= 0) {
+        this.animeHitCount++;
+        const finisher = this.animeHitCount % 5 === 0;
+        this.animeNextHit = finisher ? 1.05 : rnd(0.28, 0.48);
+        const keys = ["head","chest","chest","pelvis","head","chest","chest","chest","pelvis","head"];
+        const target = rival.rb[keys[(this.animeHitCount - 1) % keys.length] as keyof typeof rival.rb].body;
+        const power = finisher ? 46 : 18 + Math.min(18, this.animeHitCount * 0.8);
+        const lift = finisher ? 17 : rnd(3, 9);
+        target.applyImpulse(new CANNON.Vec3(direction.x * power * target.mass, lift * target.mass, direction.z * power * target.mass));
+        target.angularVelocity.x += rnd(-8, 8);
+        target.angularVelocity.y += rnd(-9, 9);
+        target.angularVelocity.z += rnd(-8, 8);
+        const strikingArm = this.rag.rb[(this.animeHitCount % 2) ? "fArmA" : "fArmB"].body;
+        strikingArm.applyImpulse(new CANNON.Vec3(direction.x * 8, rnd(1,4), direction.z * 8));
+        this.fx.burst(new THREE.Vector3(target.position.x,target.position.y,target.position.z), finisher ? 95 : 32, finisher ? 9 : 5.2,
+          finisher ? [0xffffff,0xfde047,0x38bdf8,0xf43f5e] : [0xffffff,0xfbbf24,0x7dd3fc], 0.12, finisher ? 1.15 : 0.55,
+          { gravity: 3.5, drag: 1.1, grow: 1.6 });
+        this.smoke.burst(new THREE.Vector3(target.position.x,target.position.y,target.position.z), finisher ? 18 : 5, finisher ? 2.8 : 1.2,
+          [0x263449,0x64748b,0xe2e8f0], 0.35, 0.8, { gravity: 1.1, drag: 1.2, grow: 1.8 });
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(finisher ? 0.8 : 0.38, finisher ? 0.11 : 0.055, 8, 36),
+          new THREE.MeshBasicMaterial({ color: finisher ? 0xfde047 : 0x7dd3fc, transparent: true, opacity: 0.95 }));
+        ring.userData.life = 0;
+        ring.position.copy(target.position);
+        ring.lookAt(this.camera.position);
+        this.scene.add(ring);
+        this.animeFightObjects.push(ring);
+        this.registerHit(finisher ? 1800 : 420, new THREE.Vector3(target.position.x,target.position.y,target.position.z));
+        if (finisher) {
+          this.kos += 1;
+          this.money += 5000;
+          this.popup("FINISHER K.O.  +$5,000", new THREE.Vector3(target.position.x,target.position.y+1.1,target.position.z), "ko");
+          this.sfx.explosion();
+          this.shake = Math.max(this.shake, 1.65);
+        } else {
+          this.sfx.zap();
+          this.shake = Math.max(this.shake, 0.55 + Math.random() * 0.35);
+        }
+        this.flash.position.set(target.position.x,target.position.y,target.position.z);
+        this.flash.intensity = finisher ? 180 : 55;
+        this.statsDirty = true;
+      }
+      const orbit = t < 13 ? 1 : -1;
+      const desired = midpoint.clone().add(new THREE.Vector3(Math.sin(t * 0.7) * 4.8 * orbit, 2.6 + Math.sin(t*1.8)*0.45, 6.5));
+      this.camera.position.lerp(desired, 1 - Math.exp(-3.8 * dt));
+      this.controls.target.lerp(midpoint.clone().add(new THREE.Vector3(0,0.6,0)), 1 - Math.exp(-4 * dt));
+      rival.stand = Math.max(0.08, rival.stand - dt * 0.24);
+      this.rag.stand = Math.max(0.75, this.rag.stand);
+      this.animeStatsTimer += dt;
+      if (this.animeStatsTimer > 0.22) { this.animeStatsTimer = 0; if (this.statsDirty) this.pushStats(); }
+      for (const object of [...this.animeFightObjects]) {
+        if (object.userData.life === undefined) continue;
+        object.userData.life += dt;
+        const life = object.userData.life as number;
+        object.scale.setScalar(1 + life * 9);
+        const mat = (object as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = Math.max(0, 0.95 - life * 2.4);
+        if (life > 0.42) {
+          this.scene.remove(object);
+          object.geometry.dispose();
+          mat.dispose();
+          this.animeFightObjects = this.animeFightObjects.filter((entry) => entry !== object);
+        }
+      }
+    } else if (t < 26) {
+      const finalTarget = rival.rb.chest.body;
+      if (t < 23.4) {
+        const direction = foe.clone().sub(buddy).setY(0).normalize();
+        finalTarget.applyImpulse(new CANNON.Vec3(direction.x * 85 * finalTarget.mass, 36 * finalTarget.mass, direction.z * 85 * finalTarget.mass));
+        this.fx.burst(foe, 180, 13, [0xffffff,0xfde047,0xf43f5e,0x38bdf8], 0.12, 1.4, { gravity: 4, drag: 0.8, grow: 2 });
+        this.flash.intensity = 250;
+        this.shake = Math.max(this.shake, 2.6);
+        this.sfx.explosion();
+        this.kos += 1;
+        this.money += 12000;
+        this.popup("ULTIMATE FINISH // +$12,000", foe.clone().add(new THREE.Vector3(0,1.5,0)), "ko");
+        this.statsDirty = true;
+      }
+      this.camera.position.lerp(foe.clone().add(new THREE.Vector3(5,3.8,8)), 1 - Math.exp(-3 * dt));
+      this.controls.target.lerp(foe, 1 - Math.exp(-3 * dt));
+      if (this.statsDirty) this.pushStats();
+    } else if (t < 30) {
+      this.camera.position.lerp(this.rag.center(new THREE.Vector3()).add(new THREE.Vector3(4.8,2.8,7)), 1 - Math.exp(-2.5 * dt));
+      this.controls.target.lerp(this.rag.center(new THREE.Vector3()), 1 - Math.exp(-2.5 * dt));
+      if (this.statsDirty) this.pushStats();
+    } else {
+      this.clearAnimeFight();
+      this.animeFightElapsed = -1;
+      this.camera.position.copy(this.rag.center(new THREE.Vector3()).add(new THREE.Vector3(3.6,2.4,6.4)));
+      this.controls.target.copy(this.rag.center(new THREE.Vector3()));
+      this.controls.enabled = true;
+      this.following = true;
+      this.flash.intensity = 0;
+      this.lensPass.uniforms.strength.value = 0.008;
+      this.rag.stand = 0;
+      this.sfx.whoosh();
+      const done = this.animeFightDone;
+      this.animeFightDone = null;
+      done?.();
+    }
+  }
+
   startRansomFailure(onComplete: () => void) {
     this.ransomFailureElapsed = 0;
     this.ransomFailureDone = onComplete;
@@ -1715,8 +1924,9 @@ export class Game {
 
     this.world.step(1 / 60, dt, 5);
     this.updateRemoteAvatars(rawDt);
-    this.updateFighters(rawDt);
+    if (this.animeFightElapsed < 0) this.updateFighters(rawDt);
     this.updateRadiatorCutscene(rawDt);
+    this.updateAnimeFight(rawDt);
     this.updateBuddyWeird(rawDt);
     this.updateRansomFailure(rawDt);
 
