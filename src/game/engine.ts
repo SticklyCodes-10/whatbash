@@ -1057,10 +1057,13 @@ export class Game {
     // camera follow
     if (this.following) {
       const c = this.rag.center(new THREE.Vector3());
+      // Follow Buddy's actual position without an artificial arena-sized clamp.
+      // Keep only a small vertical safety range so the camera doesn't chase extreme
+      // ragdoll launches into the sky or below the floor.
       const goal = new THREE.Vector3(
-        THREE.MathUtils.clamp(c.x, -12, 12) * 0.9,
-        THREE.MathUtils.clamp(c.y, 0.8, 4),
-        THREE.MathUtils.clamp(c.z, -12, 12) * 0.9
+        c.x * 0.9,
+        THREE.MathUtils.clamp(c.y, 0.8, 8),
+        c.z * 0.9
       );
       const k = 1 - Math.exp(-2.5 * rawDt);
       const delta = goal.sub(this.controls.target).multiplyScalar(k);
