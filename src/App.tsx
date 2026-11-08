@@ -20,6 +20,8 @@ export default function App() {
   const gameRef = useRef<Game | null>(null);
 
   const [ready, setReady] = useState(false);
+  const [loadingVisible, setLoadingVisible] = useState(true);
+  const [loadingClosing, setLoadingClosing] = useState(false);
   const [savedGame] = useState<Partial<SavedGame>>(readSave);
   const [error, setError] = useState<string | null>(null);
   const [tool, setToolState] = useState<ToolId>(() => savedGame.tool ?? "boot");
@@ -152,6 +154,13 @@ export default function App() {
     };
   }, []);
 
+
+  useEffect(() => {
+    if (!ready) return;
+    setLoadingClosing(true);
+    const timer = window.setTimeout(() => setLoadingVisible(false), 1050);
+    return () => window.clearTimeout(timer);
+  }, [ready]);
 
   useEffect(() => {
     if (!ready) return;
@@ -521,7 +530,8 @@ export default function App() {
         <div className="mb-4 flex gap-2"><button onClick={()=>setArmoryTab("tools")} className={`cyber-tab ${armoryTab==="tools"?"active":""}`}>TOOLS</button><button onClick={()=>setArmoryTab("events")} className={`cyber-tab ${armoryTab==="events"?"active":""}`}>EVENTS</button></div>
         {armoryTab === "tools" ? <><input value={toolSearch} onChange={(e)=>setToolSearch(e.target.value)} placeholder="Search tools..." className="cyber-input mb-3 w-full"/><div className="grid max-h-[48vh] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 lg:grid-cols-4">{filteredTools.map((t)=><button key={t.id} draggable onDragStart={(e)=>e.dataTransfer.setData("text/tool-id",t.id)} onClick={()=>selectTool(t.id)} className={`cyber-tool ${tool===t.id?"selected":""}`}><span className="text-2xl">{t.emoji}</span><span className="min-w-0 text-left"><b className="block truncate">{t.name}</b><small className="text-cyan-100/45">{t.action.toUpperCase()} CLASS</small></span><span className="ml-auto text-[10px] text-cyan-200/40">#{TOOLS.indexOf(t)+1}</span></button>)}</div><div className="mt-4 flex flex-wrap gap-2">{loadout.map((id,index)=>{const item=TOOLS.find((entry)=>entry.id===id)??TOOLS[0];const label=index===9?"0":String(index+1);return <div key={index} onDragOver={(e)=>e.preventDefault()} onDrop={(e)=>{e.preventDefault();const dropped=e.dataTransfer.getData("text/tool-id");if(TOOLS.some((entry)=>entry.id===dropped)){setLoadout(old=>old.map((value,slot)=>slot===index?dropped:value));selectTool(dropped);}}} className="weapon-slot armory-slot"><small>{label}</small><span>{item.emoji}</span><b>{item.name}</b></div>})}</div></> : <div className="grid gap-3 sm:grid-cols-2"><button onClick={startRansomware} className="cyber-tool min-h-28 flex-col items-start"><span className="text-3xl">🖥️</span><b>RANSOMWARE</b><small className="text-left text-cyan-100/55">A simulated 3-minute ransom event. No real payment is made.</small></button><button onClick={startAnimeFight} className="cyber-tool min-h-28 flex-col items-start border-fuchsia-400/40 bg-fuchsia-950/20 hover:border-fuchsia-300"><span className="text-3xl">⚡</span><b className="text-fuchsia-200">ANIME FIGHT</b><small className="text-left text-cyan-100/55">A full cinematic showdown. Watch Buddy unleash a devastating combo and stack cash + K.O.s.</small></button><div className="cyber-panel p-4"><div className="cyber-kicker">EVENT ARCHIVE</div><p className="mt-2 text-xs text-cyan-100/50">More world events will appear here.</p></div></div>}
       </section></div>}
-      {animeFightStage === "fight" && <div className="pointer-events-none fixed inset-0 z-[100] flex flex-col justify-between overflow-hidden"><div className="h-[8vh] bg-black/90 shadow-[0_12px_40px_rgba(0,0,0,.8)]"/><div className="absolute left-1/2 top-6 -translate-x-1/2 text-center"><div className="font-black tracking-[.45em] text-fuchsia-200 drop-shadow-[0_0_18px_rgba(217,70,239,.95)]">WHATBASH // ANIME FIGHT</div><div className="mt-1 text-[10px] tracking-[.4em] text-white/60">LIMIT BREAK PROTOCOL</div></div><div className="h-[8vh] bg-black/90 shadow-[0_-12px_40px_rgba(0,0,0,.8)]"><div className="pt-3 text-center text-[9px] font-bold tracking-[.45em] text-amber-200/70">NO MERCY · NO COOLDOWN · ALL GAS</div></div></div>}
+
+      {loadingVisible && <div className={`startup-loading fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black ${loadingClosing ? "startup-loading-close" : ""}`} aria-live="polite"><div className="startup-loading-prompt"><span className="startup-loading-dot"/>CONNECTING...</div><div className="startup-loading-track"><div className="startup-loading-fill"/></div></div>}
       {radiatorPrompt && <div className="absolute inset-0 z-[85] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"><section className="radiator-terminal w-full max-w-lg p-6 sm:p-8"><div className="cyber-kicker">ROOT ACCESS // ORBITAL WEAPON CONTROL</div><h2 className="mt-3 text-3xl font-black tracking-[.12em] text-orange-300">RADIATOR PROTOCOL</h2><p className="mt-4 text-sm leading-relaxed text-cyan-50/75">Initialize the orbital thermal array? This will trigger a full cinematic discharge and ignite the current arena.</p><div className="mt-3 border-y border-orange-300/20 py-3 font-mono text-xs text-orange-200/70">WARNING: PLANETARY SURFACE TEMPERATURE WILL EXCEED SAFE LIMITS.</div><div className="mt-6 flex gap-3"><button onClick={initializeRadiator} className="radiator-yes flex-1 py-3">YES // INITIALIZE</button><button onClick={() => setRadiatorPrompt(false)} className="radiator-no flex-1 py-3">NO // ABORT</button></div></section></div>}
       {radiatorStage === "boot" && <div className="absolute inset-0 z-[80] flex items-start justify-end p-5 sm:p-8"><section className="radiator-terminal w-full max-w-md p-4 sm:p-6"><div className="text-right font-mono text-xs font-bold tracking-[.22em] text-orange-300">INIZIALIZING RADIATOR....</div><div className="my-3 h-px bg-cyan-300/25"/><pre className="radiator-ascii my-4 text-center text-[8px] leading-[1.1] sm:text-[10px]">{" ____    _    ____ ___    _  _____ ___  ____\n|  _ \\  / \\  |  _ \\_ _|  / \\|_   _/ _ \\|  _ \\n| |_) |/ _ \\ | | | | |  / _ \\ | || | | | |_) |\n|  _ </ ___ \\| |_| | | / ___ \\| || |_| |  _ <\n|_| \\_/_/   \\_\\____/___/_/   \\_\\_| \\___/|_| \\_\\"}</pre><div className="text-center font-mono text-xs tracking-[.4em] text-amber-300">[ WAIT ]</div><div className="mt-4 text-right font-mono text-xs text-emerald-300">CORE LINK: SUCCESS ✓</div></section></div>}
       {ransomStage === "demand" && <div className="fixed inset-0 z-[110] overflow-hidden bg-[#05070d] font-mono text-green-200">
