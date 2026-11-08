@@ -111,6 +111,7 @@ export class Game {
   private radiatorStars: THREE.Points | null = null;
   private radiatorBodyTypes: Array<{ body: CANNON.Body; type: number }> = [];
   private radiatorFire = 0;
+  private buddyWeirdElapsed = -1;
   world: CANNON.World;
   raycaster = new THREE.Raycaster();
   rag!: Ragdoll;
@@ -278,6 +279,8 @@ export class Game {
   dispose() {
     this.disposed = true;
     this.buddySpeech?.remove();
+    this.container.parentElement?.classList.remove("buddy-molishing");
+    this.container.parentElement?.style.setProperty("--buddy-weird", "0");
     this.buddySpeech = null;
     this.clearRadiatorObjects();
     this.setRemotePlayers([]);
@@ -674,6 +677,10 @@ export class Game {
   // ---------------------------------------------------------------- tools
   private useTool(r: RayInfo) {
     const hit = r.hit!;
+    if (this.buddyWeirdElapsed >= 2 && this.buddyWeirdElapsed < 16) {
+      window.alert("You can’t use any items because your Buddy feels weird...");
+      return;
+    }
     if (this.tool !== "radiator") this.spawnIdentityWeapon(hit.point, r.dir);
     switch (this.tool) {
       case "boot":
@@ -722,6 +729,29 @@ export class Game {
       case "radiator":
         if (this.rag.bodySet.has(hit.body)) this.cb.onRadiator();
         else this.sfx.tick();
+        break;
+      case "acid":
+        if (this.rag.bodySet.has(hit.body)) {
+          this.fx.burst(hit.point, 95, 7.5, [0x84cc16, 0xa3e635, 0xd9f99d, 0x22c55e], 0.3, 0.9, { gravity: 2.2, drag: 1.6, grow: 1.8 });
+          this.smoke.burst(hit.point, 22, 1.5, [0x65a30d, 0x365314, 0x9ca3af], 0.45, 1.4, { gravity: 0.5, drag: 1.1, grow: 2.2 });
+          for (const rb of this.rag.list) {
+            const b = rb.body;
+            const d = Math.hypot(b.position.x-hit.point.x,b.position.y-hit.point.y,b.position.z-hit.point.z);
+            if (d < 2.2) b.applyImpulse(new CANNON.Vec3(r.dir.x*b.mass*2.2,r.dir.y*b.mass*2.2+0.8,r.dir.z*b.mass*2.2));
+          }
+          this.addPain(12); this.shake = Math.max(this.shake,0.45); this.sfx.zap();
+        }
+        break;
+      case "knife":
+        if (this.rag.bodySet.has(hit.body)) this.melee(r, "fist", 10, true);
+        break;
+      case "wl201":
+        if (this.rag.bodySet.has(hit.body)) {
+          this.buddyWeirdElapsed = 0;
+          this.sfx.zap();
+          this.fx.burst(hit.point, 30, 3.2, [0xc084fc,0xf0abfc,0xffffff], 0.25, 0.7, { gravity: 1.5, drag: 2, grow: 1.6 });
+          this.popup("WL-201", hit.point.clone().add(new THREE.Vector3(0,0.35,0)), "zap");
+        }
         break;
     }
   }
@@ -797,23 +827,44 @@ export class Game {
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.copy(position); mesh.rotation.copy(rotation); mesh.castShadow = true; group.add(mesh);
     };
-    const profile = seed % 8;
-    const length = 0.62 + (seed % 5) * 0.09;
-    add(new THREE.CylinderGeometry(0.045, 0.07, length, 7 + (seed % 7)), gripMat, new THREE.Vector3(0, 0, 0));
-    if (profile === 0) add(new THREE.BoxGeometry(0.24, 0.2, 0.34 + (seed % 3) * 0.1), coreMat, new THREE.Vector3(0, 0.02, -0.12));
-    else if (profile === 1) add(new THREE.ConeGeometry(0.2, 0.5, 5 + (seed % 5)), coreMat, new THREE.Vector3(0, 0.02, -0.18), new THREE.Euler(Math.PI / 2, 0, 0));
-    else if (profile === 2) add(new THREE.TorusGeometry(0.2, 0.065, 8, 12), coreMat, new THREE.Vector3(0, 0, -0.2), new THREE.Euler(Math.PI / 2, 0, 0));
-    else if (profile === 3) add(new THREE.SphereGeometry(0.22, 8 + seed % 7, 6 + seed % 5), coreMat, new THREE.Vector3(0, 0, -0.18));
-    else if (profile === 4) add(new THREE.OctahedronGeometry(0.27 + (seed % 3) * 0.04), coreMat, new THREE.Vector3(0, 0, -0.18));
-    else if (profile === 5) add(new THREE.DodecahedronGeometry(0.24 + (seed % 3) * 0.04), coreMat, new THREE.Vector3(0, 0, -0.18));
-    else if (profile === 6) add(new THREE.CylinderGeometry(0.23, 0.08, 0.38, 6 + seed % 6), coreMat, new THREE.Vector3(0, 0, -0.18), new THREE.Euler(Math.PI / 2, 0, 0));
-    else add(new THREE.TorusKnotGeometry(0.14, 0.045, 48 + seed % 24, 6, 2 + seed % 3, 3 + seed % 4), coreMat, new THREE.Vector3(0, 0, -0.18));
-    const details = 2 + seed % 5;
-    for (let n = 0; n < details; n++) {
-      const angle = (Math.PI * 2 * n) / details;
-      const radius = 0.2 + (seed % 4) * 0.025;
-      const point = new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, -0.2 - (n % 2) * 0.08);
-      add(n % 2 === 0 ? new THREE.BoxGeometry(0.055, 0.19, 0.09) : new THREE.ConeGeometry(0.075, 0.2, 5 + seed % 4), accentMat, point, new THREE.Euler(0, 0, angle));
+    if (def.id === "knife") {
+      add(new THREE.CylinderGeometry(0.055,0.065,0.38,10), gripMat, new THREE.Vector3(0,0.02,0));
+      add(new THREE.BoxGeometry(0.32,0.055,0.075), accentMat, new THREE.Vector3(0,0.22,0));
+      add(new THREE.ConeGeometry(0.105,0.78,4), coreMat, new THREE.Vector3(0,0.62,-0.02), new THREE.Euler(Math.PI/2,0,0));
+      add(new THREE.BoxGeometry(0.035,0.12,0.08), accentMat, new THREE.Vector3(0,0.34,-0.02));
+    } else if (def.id === "wl201") {
+      add(new THREE.CylinderGeometry(0.105,0.105,0.58,16), accentMat, new THREE.Vector3(0,0.02,0));
+      add(new THREE.CylinderGeometry(0.083,0.083,0.39,16), coreMat, new THREE.Vector3(0,-0.01,-0.01));
+      add(new THREE.CylinderGeometry(0.025,0.025,0.38,8), gripMat, new THREE.Vector3(0,0.48,-0.02));
+      add(new THREE.ConeGeometry(0.018,0.22,8), accentMat, new THREE.Vector3(0,0.77,-0.02));
+      add(new THREE.BoxGeometry(0.28,0.045,0.12), gripMat, new THREE.Vector3(0,0.28,0));
+      add(new THREE.BoxGeometry(0.24,0.045,0.12), gripMat, new THREE.Vector3(0,-0.25,0));
+      add(new THREE.BoxGeometry(0.045,0.16,0.045), accentMat, new THREE.Vector3(0,0.02,0.09));
+    } else if (def.id === "acid") {
+      add(new THREE.CylinderGeometry(0.19,0.16,0.52,12), coreMat, new THREE.Vector3(0,0,0));
+      add(new THREE.CylinderGeometry(0.13,0.13,0.35,12), accentMat, new THREE.Vector3(0,-0.04,0));
+      add(new THREE.CylinderGeometry(0.09,0.11,0.16,10), gripMat, new THREE.Vector3(0,0.34,0));
+      add(new THREE.TorusGeometry(0.19,0.035,8,16), accentMat, new THREE.Vector3(0,0.2,0));
+      add(new THREE.BoxGeometry(0.12,0.18,0.08), gripMat, new THREE.Vector3(0,-0.31,0));
+    } else {
+      const profile = seed % 8;
+      const length = 0.62 + (seed % 5) * 0.09;
+      add(new THREE.CylinderGeometry(0.045, 0.07, length, 7 + (seed % 7)), gripMat, new THREE.Vector3(0, 0, 0));
+      if (profile === 0) add(new THREE.BoxGeometry(0.24, 0.2, 0.34 + (seed % 3) * 0.1), coreMat, new THREE.Vector3(0, 0.02, -0.12));
+      else if (profile === 1) add(new THREE.ConeGeometry(0.2, 0.5, 5 + (seed % 5)), coreMat, new THREE.Vector3(0, 0.02, -0.18), new THREE.Euler(Math.PI / 2, 0, 0));
+      else if (profile === 2) add(new THREE.TorusGeometry(0.2, 0.065, 8, 12), coreMat, new THREE.Vector3(0, 0, -0.2), new THREE.Euler(Math.PI / 2, 0, 0));
+      else if (profile === 3) add(new THREE.SphereGeometry(0.22, 8 + seed % 7, 6 + seed % 5), coreMat, new THREE.Vector3(0, 0, -0.18));
+      else if (profile === 4) add(new THREE.OctahedronGeometry(0.27 + (seed % 3) * 0.04), coreMat, new THREE.Vector3(0, 0, -0.18));
+      else if (profile === 5) add(new THREE.DodecahedronGeometry(0.24 + (seed % 3) * 0.04), coreMat, new THREE.Vector3(0, 0, -0.18));
+      else if (profile === 6) add(new THREE.CylinderGeometry(0.23, 0.08, 0.38, 6 + seed % 6), coreMat, new THREE.Vector3(0, 0, -0.18), new THREE.Euler(Math.PI / 2, 0, 0));
+      else add(new THREE.TorusKnotGeometry(0.14, 0.045, 48 + seed % 24, 6, 2 + seed % 3, 3 + seed % 4), coreMat, new THREE.Vector3(0, 0, -0.18));
+      const details = 2 + seed % 5;
+      for (let n = 0; n < details; n++) {
+        const angle = (Math.PI * 2 * n) / details;
+        const radius = 0.2 + (seed % 4) * 0.025;
+        const point = new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, -0.2 - (n % 2) * 0.08);
+        add(n % 2 === 0 ? new THREE.BoxGeometry(0.055, 0.19, 0.09) : new THREE.ConeGeometry(0.075, 0.2, 5 + seed % 4), accentMat, point, new THREE.Euler(0, 0, angle));
+      }
     }
     const anim: ToolAnim = { group, t: 0, dur: 0.62, kind: "thrust", hit: hit.clone(), dir: dir.clone().normalize(), right: new THREE.Vector3(1, 0, 0) };
     this.scene.add(group);
@@ -1283,6 +1334,32 @@ export class Game {
     bubble.style.top = `${y}px`;
   }
 
+  private updateBuddyWeird(dt: number) {
+    if (this.buddyWeirdElapsed < 0) return;
+    this.buddyWeirdElapsed += dt;
+    const t = this.buddyWeirdElapsed;
+    const intensity = t < 2 ? 0 : t < 12 ? (t - 2) / 10 : t < 16 ? 1 - (t - 12) / 4 : 0;
+    const root = this.container.parentElement;
+    if (root) {
+      if (t >= 2 && t < 16) root.classList.add("buddy-molishing");
+      else root.classList.remove("buddy-molishing");
+      root.style.setProperty("--buddy-weird", String(THREE.MathUtils.clamp(intensity, 0, 1)));
+    }
+    this.lensPass.uniforms.strength.value = 0.008 + intensity * 0.115;
+    if (intensity > 0.12) {
+      this.shake = Math.max(this.shake, intensity * 0.16);
+      this.camera.rotation.z = Math.sin(t * 8) * intensity * 0.025;
+    } else {
+      this.camera.rotation.z *= Math.max(0, 1 - dt * 5);
+    }
+    if (t >= 16) {
+      this.buddyWeirdElapsed = -1;
+      this.lensPass.uniforms.strength.value = 0.008;
+      this.camera.rotation.z = 0;
+      if (root) { root.classList.remove("buddy-molishing"); root.style.setProperty("--buddy-weird", "0"); }
+    }
+  }
+
   private updateRadiatorCutscene(dt: number) {
     if (this.radiatorElapsed < 0) {
       if (this.radiatorFire > 0 && this.rag && Math.random() < 0.42) {
@@ -1309,6 +1386,7 @@ export class Game {
     this.world.step(1 / 60, dt, 5);
     this.updateRemoteAvatars(rawDt);
     this.updateRadiatorCutscene(rawDt);
+    this.updateBuddyWeird(rawDt);
 
     this.env?.update(rawDt);
 
