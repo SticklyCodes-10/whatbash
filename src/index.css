@@ -215,8 +215,8 @@ body,
 .radiator-cinematic-shroud{position:absolute;inset:0;z-index:34;pointer-events:none;background:#02040c;animation:radiator-fade 1.5s ease-in-out both}@keyframes radiator-fade{0%{opacity:0}22%,82%{opacity:.94}100%{opacity:0}}
 
 /* WL-201 escalating molishing / distortion state */
-.buddy-molishing #root{}
-.buddy-molishing .site-lens-frame{filter:hue-rotate(calc(var(--buddy-weird,0) * 105deg)) saturate(calc(1 + var(--buddy-weird,0) * 2.2)) contrast(calc(1 + var(--buddy-weird,0) * .45));}
-.buddy-molishing .site-lens-frame > :not(canvas):not(.buddy-molishing-ignore){transform:translate(calc(sin(var(--buddy-weird,0) * 42rad) * 7px),calc(cos(var(--buddy-weird,0) * 37rad) * 5px)) ) skew(calc(sin(var(--buddy-weird,0) * 29rad) * 2.4deg));}
-.buddy-molishing .crt-ui-overlay{opacity:calc(.46 + var(--buddy-weird,0) * .42);background:repeating-linear-gradient(to bottom,rgba(0,0,0,calc(.12 + var(--buddy-weird,0) * .18)) 0px,rgba(0,0,0,.12) 1px,transparent 1px,transparent 4px),radial-gradient(ellipse at center,transparent 35%,rgba(150,30,220,calc(var(--buddy-weird,0) * .36)) 100%);}
-.buddy-molishing .site-lens-frame:after{border-color:rgba(220,90,255,calc(.16 + var(--buddy-weird,0) * .55));box-shadow:inset 0 0 55px rgba(180,30,255,calc(var(--buddy-weird,0) * .35)),0 0 35px rgba(255,40,190,calc(var(--buddy-weird,0) * .28));}
+.site-lens-frame.buddy-molishing{}
+.site-lens-frame.buddy-molishing{filter:hue-rotate(calc(var(--buddy-weird,0) * 105deg)) saturate(calc(1 + var(--buddy-weird,0) * 2.2)) contrast(calc(1 + var(--buddy-weird,0) * .45));}
+.site-lens-frame.buddy-molishing > :not(canvas):not(.buddy-molishing-ignore){transform:translate(calc(sin(var(--buddy-weird,0) * 42rad) * 7px),calc(cos(var(--buddy-weird,0) * 37rad) * 5px)) ) skew(calc(sin(var(--buddy-weird,0) * 29rad) * 2.4deg));}
+.site-lens-frame.buddy-molishing .crt-ui-overlay{opacity:calc(.46 + var(--buddy-weird,0) * .42);background:repeating-linear-gradient(to bottom,rgba(0,0,0,calc(.12 + var(--buddy-weird,0) * .18)) 0px,rgba(0,0,0,.12) 1px,transparent 1px,transparent 4px),radial-gradient(ellipse at center,transparent 35%,rgba(150,30,220,calc(var(--buddy-weird,0) * .36)) 100%);}
+.site-lens-frame.buddy-molishing:after{border-color:rgba(220,90,255,calc(.16 + var(--buddy-weird,0) * .55));box-shadow:inset 0 0 55px rgba(180,30,255,calc(var(--buddy-weird,0) * .35)),0 0 35px rgba(255,40,190,calc(var(--buddy-weird,0) * .28));}
