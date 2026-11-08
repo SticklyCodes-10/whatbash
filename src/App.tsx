@@ -32,6 +32,10 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(true);
   const [gameStarted, setGameStarted] = useState(false);
   const [menuLeaving, setMenuLeaving] = useState(false);
+  const [endingRun, setEndingRun] = useState(false);
+  const [runEnded, setRunEnded] = useState(false);
+  const [runSummary, setRunSummary] = useState<Stats | null>(null);
+  const runStartedAt = useRef<number>(Date.now());
   const [menuTab, setMenuTab] = useState<"play" | "loadout" | "style" | "arenas">(savedGame.menuTab ?? "play");
   const [toolSearch, setToolSearch] = useState("");
   const [shirtColor, setShirtColor] = useState(savedGame.shirtColor ?? "#2fd3cb");
@@ -135,7 +139,7 @@ export default function App() {
     gameRef.current?.setBuddyColors(shirtColor, hairColor);
     const savedArena = ENVS.find((env) => env.name === savedGame.placeName);
     if (savedArena) gameRef.current?.selectEnvironment(savedArena.id);
-  // Restore the saved configuration once the 3D scene is ready.
+  // Restore the last explicitly saved configuration once the 3D scene is ready.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
@@ -144,13 +148,39 @@ export default function App() {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot)); } catch (err) { console.warn("WHATBASH could not save this browser's local save data.", err); }
   }, [stats, tool, place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab]);
 
-  useEffect(() => { writeSave(); }, [writeSave]);
   useEffect(() => {
-    const interval = window.setInterval(writeSave, 4000);
-    const onPageHide = () => writeSave();
+    let confirmedLeave = false;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!gameStarted || runEnded) return;
+      confirmedLeave = true;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const onPageHide = () => {
+      if (confirmedLeave && !runEnded) writeSave();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
     window.addEventListener("pagehide", onPageHide);
-    return () => { window.clearInterval(interval); window.removeEventListener("pagehide", onPageHide); };
-  }, [writeSave]);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [gameStarted, runEnded, writeSave]);
+
+  useEffect(() => {
+    document.title = endingRun || runEnded ? "404: END" : "WHATBASH";
+    return () => { document.title = "WHATBASH"; };
+  }, [endingRun, runEnded]);
+
+  const endRun = useCallback(() => {
+    if (endingRun || runEnded) return;
+    setEndingRun(true);
+    gameRef.current?.endRun(() => {
+      setRunSummary({ ...stats });
+      setEndingRun(false);
+      setRunEnded(true);
+    });
+  }, [endingRun, runEnded, stats]);
 
   const selectTool = useCallback((id: ToolId) => {
     setToolState(id);
@@ -207,8 +237,8 @@ export default function App() {
         </div>
       )}
 
-      {gameStarted && <button onClick={() => { setMenuTab("play"); setMenuOpen(true); }} className="cyber-menu-trigger absolute right-3 bottom-28 z-20 sm:right-5">☰ MENU</button>}
-      {gameStarted && <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-2 sm:left-4 sm:top-4">
+      {gameStarted && !endingRun && !runEnded && <><button onClick={() => { setMenuTab("play"); setMenuOpen(true); }} className="cyber-menu-trigger absolute right-3 bottom-28 z-20 sm:right-5">☰ MENU</button><button onClick={endRun} className="end-run-button absolute right-3 bottom-16 z-20 sm:right-5">☠ END RUN</button></>}
+      {gameStarted && !endingRun && !runEnded && <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-2 sm:left-4 sm:top-4">
         <div className="pointer-events-auto flex items-center gap-2">
           <div className="flex items-center gap-2 rounded-2xl border-2 border-white/30 bg-black/45 px-3 py-1.5 text-sm font-semibold backdrop-blur sm:text-base">
             <span className="text-xl">{place.emoji}</span>
@@ -225,7 +255,7 @@ export default function App() {
       </div>}
 
       {/* Top-right: score */}
-      {gameStarted && <div className="pointer-events-none absolute right-3 top-3 z-10 flex w-56 flex-col items-end gap-2 sm:right-4 sm:top-4 sm:w-72">
+      {gameStarted && !endingRun && !runEnded && <div className="pointer-events-none absolute right-3 top-3 z-10 flex w-56 flex-col items-end gap-2 sm:right-4 sm:top-4 sm:w-72">
         <div className="flex items-center gap-2">
           {stats.kos > 0 && (
             <div className="rounded-xl bg-red-600/90 px-2 py-1 text-sm font-bold">💀 {stats.kos}</div>
@@ -257,7 +287,7 @@ export default function App() {
       </div>}
 
       {/* Left: toggles */}
-      {gameStarted && <div className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2 sm:left-4">
+      {gameStarted && !endingRun && !runEnded && <div className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2 sm:left-4">
         <SideBtn label="Reset buddy (R)" on={false} onClick={reset}>🔄</SideBtn>
         <SideBtn
           label="Buddy tries to stand up"
@@ -325,11 +355,11 @@ export default function App() {
         </div>
       )*/}
 
-      {gameStarted && <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center px-3"><div className="cyber-panel flex items-center gap-3 px-4 py-2"><span className="text-2xl">{current.emoji}</span><div className="min-w-0"><div className="cyber-kicker">EQUIPPED // {TOOLS.findIndex((t) => t.id === tool) + 1}/100</div><div className="font-bold">{current.name}</div></div><button onClick={() => { setMenuTab("loadout"); setMenuOpen(true); }} className="cyber-button">▦ TOOL ARMORY</button></div></div>}
-      {menuOpen && ready && (
+      {gameStarted && !endingRun && !runEnded && <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center px-3"><div className="cyber-panel flex items-center gap-3 px-4 py-2"><span className="text-2xl">{current.emoji}</span><div className="min-w-0"><div className="cyber-kicker">EQUIPPED // {TOOLS.findIndex((t) => t.id === tool) + 1}/100</div><div className="font-bold">{current.name}</div></div><button onClick={() => { setMenuTab("loadout"); setMenuOpen(true); }} className="cyber-button">▦ TOOL ARMORY</button></div></div>}
+      {menuOpen && ready && !endingRun && !runEnded && (
         <div className="absolute inset-0 z-40 flex items-center justify-start overflow-y-auto bg-gradient-to-r from-[#030712]/65 via-[#030712]/20 to-transparent p-3 backdrop-blur-[2px] sm:p-8">
           <div className={`cyber-menu cyber-menu-side w-full max-w-[440px] ${menuLeaving ? "menu-exit" : ""}`}>
-            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-cyan-300/20 p-5 sm:p-7"><div><div className="cyber-kicker">NEON DISTRICT // SYSTEM ONLINE</div><h1 className="cyber-title">WHAT<span>BASH</span></h1><p className="text-xs tracking-[.25em] text-cyan-100/60">RAGDOLL MAYHEM SIMULATOR · BUILD 2099.7</p></div><div className="text-right"><div className="text-[10px] font-black tracking-[.2em] text-emerald-300">● AUTO-SAVE ON</div><div className="text-[9px] tracking-wider text-cyan-100/40">THIS DEVICE</div></div></div>
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-cyan-300/20 p-5 sm:p-7"><div><div className="cyber-kicker">NEON DISTRICT // SYSTEM ONLINE</div><h1 className="cyber-title">WHAT<span>BASH</span></h1><p className="text-xs tracking-[.25em] text-cyan-100/60">RAGDOLL MAYHEM SIMULATOR · BUILD 2099.7</p></div><div className="text-right"><div className="text-[10px] font-black tracking-[.2em] text-cyan-200">● MANUAL SAVE</div><div className="text-[9px] tracking-wider text-cyan-100/40">PROMPT ON EXIT</div></div></div>
             <div className="flex flex-wrap gap-2 border-b border-cyan-300/15 p-4">{(["play","loadout","style","arenas"] as const).map((tab) => <button key={tab} onClick={() => setMenuTab(tab)} className={`cyber-tab ${menuTab===tab?"active":""}`}>{tab==="play"?"▶ PLAY":tab==="loadout"?"▦ ARMORY":tab==="style"?"◈ CHARACTER":"⌖ ARENAS"}</button>)}</div>
             <div className="min-h-[300px] p-5 sm:p-7">
               {menuTab === "play" && <div className="grid gap-5"><div><div className="cyber-kicker">WELCOME BACK, OPERATOR</div><h2 className="mb-3 text-3xl font-black sm:text-5xl">MAKE SOME<br/><span className="text-fuchsia-300">NOISE.</span></h2><p className="max-w-lg leading-7 text-cyan-50/65">Pick a loadout, drop into a district and turn physics into a light show. Chain impacts, trigger combos and send Buddy flying.</p><button onClick={() => { if (gameStarted) { setMenuOpen(false); return; } gameRef.current?.startGame(); setMenuLeaving(true); window.setTimeout(() => { setMenuOpen(false); setGameStarted(true); setMenuLeaving(false); }, 1250); }} className="cyber-button mt-6 px-8 py-4 text-lg">{gameStarted ? "▶ RESUME GAME" : "▶ START GAME"}</button></div><div className="cyber-stat-grid"><div><b>{TOOLS.length}</b><span>TOOLS ONLINE</span></div><div><b>{ENVS.length}</b><span>MAPS ONLINE</span></div><div><b>{stats.kos}</b><span>KNOCKOUTS</span></div><div><b>${stats.money.toLocaleString()}</b><span>CREDITS</span></div></div></div>}
@@ -341,6 +371,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {endingRun && <div className="end-run-glitch absolute inset-0 z-[70] pointer-events-none"><div className="end-run-scanlines" /><div className="end-run-flash" /><div className="absolute inset-0 flex items-center justify-center"><div className="title-font text-5xl sm:text-8xl tracking-widest text-red-100 glitch-label">404: END</div></div></div>}
+      {runEnded && runSummary && <div className="absolute inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-[#05030b]/95 p-4 backdrop-blur-xl"><div className="end-summary w-full max-w-xl p-6 sm:p-9"><div className="cyber-kicker">SESSION TERMINATED // FINAL REPORT</div><h2 className="title-font my-3 text-6xl tracking-widest text-red-300 sm:text-8xl">404: END</h2><p className="mb-6 text-sm tracking-[.2em] text-cyan-100/55">BUDDY HAS LEFT THE CHAT.</p><div className="grid grid-cols-2 gap-3"><div><b>${runSummary.money.toLocaleString()}</b><span>CREDITS EARNED</span></div><div><b>{runSummary.kos}</b><span>KNOCKOUTS</span></div><div><b>{Math.round(runSummary.pain)}%</b><span>FINAL PAIN</span></div><div><b>{Math.floor((Date.now()-runStartedAt.current)/60000)}m {Math.floor(((Date.now()-runStartedAt.current)/1000)%60)}s</b><span>RUN DURATION</span></div></div><div className="mt-7 flex flex-wrap gap-3"><button onClick={() => window.location.reload()} className="cyber-button px-6 py-3">↻ NEW SESSION</button><span className="self-center text-xs text-cyan-100/40">Run ended. No save prompt will appear.</span></div></div></div>}
     </div>
   );
 }
