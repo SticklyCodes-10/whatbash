@@ -44,46 +44,6 @@ const quantize = (bodies: BuddyBodySave[]) => {
   }
   return values;
 };
-const encodePose = (seq: number, full: boolean, values: number[]): ArrayBuffer => {
-  const count = full ? values.length : values.length / 2;
-  const bytes = 8 + count * (full ? 2 : 4);
-  const buffer = new ArrayBuffer(bytes);
-  const view = new DataView(buffer);
-  view.setUint8(0, 1); // protocol version
-  view.setUint8(1, full ? 1 : 0);
-  view.setUint32(2, seq >>> 0, true);
-  view.setUint16(6, count, true);
-  let offset = 8;
-  if (full) {
-    for (const value of values) { view.setInt16(offset, value, true); offset += 2; }
-  } else {
-    for (let i = 0; i + 1 < values.length; i += 2) {
-      view.setUint16(offset, values[i], true);
-      view.setInt16(offset + 2, values[i + 1], true);
-      offset += 4;
-    }
-  }
-  return buffer;
-};
-const decodePose = (data: ArrayBuffer | Uint8Array): Extract<Packet, { type: "pose" }> | null => {
-  const buffer = data instanceof ArrayBuffer ? data : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
-  if (buffer.byteLength < 8) return null;
-  const view = new DataView(buffer);
-  if (view.getUint8(0) !== 1) return null;
-  const full = (view.getUint8(1) & 1) !== 0;
-  const seq = view.getUint32(2, true);
-  const count = view.getUint16(6, true);
-  const expected = 8 + count * (full ? 2 : 4);
-  if (buffer.byteLength !== expected || count > BODY_KEYS.length * VALUES_PER_BODY) return null;
-  const values: number[] = [];
-  let offset = 8;
-  if (full) {
-    for (let i = 0; i < count; i++, offset += 2) values.push(view.getInt16(offset, true));
-  } else {
-    for (let i = 0; i < count; i++, offset += 4) values.push(view.getUint16(offset, true), view.getInt16(offset + 2, true));
-  }
-  return { type: "pose", playerId: "", seq, full, values };
-};
 const expandPose = (values: number[]): BuddyBodySave[] => {
   const bodies: BuddyBodySave[] = [];
   for (let offset = 0; offset + VALUES_PER_BODY <= values.length; offset += VALUES_PER_BODY) {
@@ -181,7 +141,7 @@ export class PeerRoom {
     return new Promise((resolve, reject) => {
       const peer = this.peer;
       if (!peer) return reject(new Error("Peer connection is not ready."));
-      const connection = peer.connect(peerIdFor(code), { reliable: true, serialization: "binary-utf8" });
+      const connection = peer.connect(peerIdFor(code), { reliable: true, serialization: "json" });
       this.hostConnection = connection;
       let gotWelcome = false;
       connection.on("open", () => connection.send({ type: "hello", playerId: this.localId, name: this.name, color: this.color } satisfies Packet));
