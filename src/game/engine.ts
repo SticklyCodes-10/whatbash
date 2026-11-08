@@ -284,7 +284,37 @@ export class Game {
     this.following = true;
     this.sfx.whoosh();
   }
-  getBuddySnapshot(): BuddyBodySave[] {\n    if (!this.rag) return [];\n    return this.rag.list.map(({ key, body }) => ({\n      key,\n      position: [body.position.x, body.position.y, body.position.z] as [number, number, number],\n      quaternion: [body.quaternion.x, body.quaternion.y, body.quaternion.z, body.quaternion.w] as [number, number, number, number],\n      velocity: [body.velocity.x, body.velocity.y, body.velocity.z] as [number, number, number],\n      angularVelocity: [body.angularVelocity.x, body.angularVelocity.y, body.angularVelocity.z] as [number, number, number],\n    }));\n  }\n  restoreBuddySnapshot(snapshot: BuddyBodySave[]) {\n    if (!this.rag || !Array.isArray(snapshot)) return;\n    for (const saved of snapshot) {\n      const body = this.rag.rb[saved.key]?.body;\n      if (!body || !saved.position || !saved.quaternion || !saved.velocity || !saved.angularVelocity) continue;\n      body.position.set(...saved.position);\n      body.quaternion.set(...saved.quaternion);\n      body.velocity.set(...saved.velocity);\n      body.angularVelocity.set(...saved.angularVelocity);\n      body.aabbNeedsUpdate = true;\n    }\n    this.rag.syncVisuals();\n  }\n  restoreStats(stats: Stats) {\n    this.money = Math.max(0, stats.money || 0);\n    this.pain = Math.max(0, Math.min(100, stats.pain || 0));\n    this.combo = Math.max(0, stats.combo || 0);\n    this.kos = Math.max(0, stats.kos || 0);\n    this.pushStats();\n  }\n  setTool(t: ToolId) {
+  getBuddySnapshot(): BuddyBodySave[] {
+    if (!this.rag) return [];
+    return this.rag.list.map(({ key, body }) => ({
+      key,
+      position: [body.position.x, body.position.y, body.position.z] as [number, number, number],
+      quaternion: [body.quaternion.x, body.quaternion.y, body.quaternion.z, body.quaternion.w] as [number, number, number, number],
+      velocity: [body.velocity.x, body.velocity.y, body.velocity.z] as [number, number, number],
+      angularVelocity: [body.angularVelocity.x, body.angularVelocity.y, body.angularVelocity.z] as [number, number, number],
+    }));
+  }
+  restoreBuddySnapshot(snapshot: BuddyBodySave[]) {
+    if (!this.rag || !Array.isArray(snapshot)) return;
+    for (const saved of snapshot) {
+      const body = this.rag.rb[saved.key]?.body;
+      if (!body || !saved.position || !saved.quaternion || !saved.velocity || !saved.angularVelocity) continue;
+      body.position.set(...saved.position);
+      body.quaternion.set(...saved.quaternion);
+      body.velocity.set(...saved.velocity);
+      body.angularVelocity.set(...saved.angularVelocity);
+      body.aabbNeedsUpdate = true;
+    }
+    this.rag.syncVisuals();
+  }
+  restoreStats(stats: Stats) {
+    this.money = Math.max(0, stats.money || 0);
+    this.pain = Math.max(0, Math.min(100, stats.pain || 0));
+    this.combo = Math.max(0, stats.combo || 0);
+    this.kos = Math.max(0, stats.kos || 0);
+    this.pushStats();
+  }
+  setTool(t: ToolId) {
     this.tool = TOOLS.find((item) => item.id === t)?.action ?? t;
     this.sfx.tick();
   }
