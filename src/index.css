@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.title-font {
+  font-family: "Bangers", "Impact", system-ui, sans-serif;
+}
+
+.popup {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: "Bangers", "Impact", system-ui, sans-serif;
+  font-size: 34px;
+  letter-spacing: 1.5px;
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 3px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000;
+  animation: popup-rise 0.95s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+  pointer-events: none;
+  z-index: 5;
+}
+.popup.word {
+  color: #ffe14d;
+  font-size: 48px;
+  -webkit-text-stroke: 2px #b91c1c;
+}
+.popup.word.small {
+  font-size: 32px;
+}
+.popup.word.zap {
+  color: #8cf0ff;
+  -webkit-text-stroke: 2px #0369a1;
+}
+.popup.money {
+  color: #86efac;
+  font-size: 30px;
+}
+.popup.combo {
+  color: #fdba74;
+  font-size: 36px;
+}
+.popup.ko {
+  color: #fecaca;
+  font-size: 84px;
+  -webkit-text-stroke: 3px #991b1b;
+  animation-duration: 1.4s;
+}
+
+@keyframes popup-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -30%) scale(0.3) rotate(-8deg);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -60%) scale(1.25) rotate(4deg);
+  }
+  35% {
+    transform: translate(-50%, -80%) scale(1) rotate(-2deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -190%) scale(0.9) rotate(0deg);
+  }
+}
+
+.combo-pop {
+  animation: combo-pop 0.25s ease-out;
+}
+@keyframes combo-pop {
+  0% {
+    transform: scale(1.6);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+::-webkit-scrollbar {
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+}
