@@ -268,7 +268,7 @@ export class Game {
     const h = this.container.clientHeight || 1;
     this.renderer.setSize(w, h);
     this.composer.setSize(w, h);
-    (this.lensPass.uniforms.aspect as THREE.IUniform<number>).value = w / h;
+    this.lensPass.uniforms.aspect.value = w / h;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     const scale = (h * this.renderer.getPixelRatio()) / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
