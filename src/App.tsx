@@ -6,12 +6,19 @@ import { ENVS } from "./game/environment";
 import type { ToolId } from "./game/tools";
 import { cn } from "./utils/cn";
 
-type SavedGame = { version: 1; stats: Stats; tool: ToolId; placeName: string; buddy?: BuddyBodySave[]; shirtColor: string; hairColor: string; stand: boolean; slow: boolean; sound: boolean; follow: boolean; showHelp: boolean; menuTab: "play" | "loadout" | "style" | "arenas" };\nconst SAVE_KEY = "whatbash-save-v1";\nfunction readSave(): Partial<SavedGame> {\n  try { const raw = localStorage.getItem(SAVE_KEY); return raw ? JSON.parse(raw) as Partial<SavedGame> : {}; } catch { return {}; }\n}\n\nexport default function App() {
+type SavedGame = { version: 1; stats: Stats; tool: ToolId; placeName: string; buddy?: BuddyBodySave[]; shirtColor: string; hairColor: string; stand: boolean; slow: boolean; sound: boolean; follow: boolean; showHelp: boolean; menuTab: "play" | "loadout" | "style" | "arenas" };
+const SAVE_KEY = "whatbash-save-v1";
+function readSave(): Partial<SavedGame> {
+  try { const raw = localStorage.getItem(SAVE_KEY); return raw ? JSON.parse(raw) as Partial<SavedGame> : {}; } catch { return {}; }
+}
+
+export default function App() {
   const mountRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
 
-  const [ready, setReady] = useState(false);\n  const [savedGame] = useState<Partial<SavedGame>>(readSave);
+  const [ready, setReady] = useState(false);
+  const [savedGame] = useState<Partial<SavedGame>>(readSave);
   const [error, setError] = useState<string | null>(null);
   const [tool, setToolState] = useState<ToolId>(() => savedGame.tool ?? "boot");
   const [stats, setStats] = useState<Stats>(() => savedGame.stats ?? { money: 0, pain: 0, combo: 0, kos: 0 });
@@ -115,13 +122,47 @@ type SavedGame = { version: 1; stats: Stats; tool: ToolId; placeName: string; bu
     };
   }, []);
 
-\n  useEffect(() => {\n    if (!ready) return;\n    gameRef.current?.setTool(tool);\n    gameRef.current?.restoreStats(stats);\n    if (savedGame.buddy?.length) gameRef.current?.restoreBuddySnapshot(savedGame.buddy);\n    gameRef.current?.setStand(stand);\n    gameRef.current?.setSlowmo(slow);\n    gameRef.current?.setSound(sound);\n    gameRef.current?.setFollow(follow);\n    gameRef.current?.setBuddyColors(shirtColor, hairColor);\n    const savedArena = ENVS.find((env) => env.name === savedGame.placeName);\n    if (savedArena) gameRef.current?.selectEnvironment(savedArena.id);\n  // Restore the saved configuration once the 3D scene is ready.\n  // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [ready]);\n\n  const writeSave = useCallback(() => {\n    const snapshot: SavedGame = { version: 1, stats, tool, placeName: place.name, buddy: gameRef.current?.getBuddySnapshot(), shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab };\n    try { localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot)); } catch (err) { console.warn("WHATBASH could not save this browser's local save data.", err); }\n  }, [stats, tool, place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab]);\n\n  useEffect(() => { writeSave(); }, [writeSave]);\n  useEffect(() => {\n    const interval = window.setInterval(writeSave, 4000);\n    const onPageHide = () => writeSave();\n    window.addEventListener("pagehide", onPageHide);\n    return () => { window.clearInterval(interval); window.removeEventListener("pagehide", onPageHide); };\n  }, [writeSave]);\n\n  const selectTool = useCallback((id: ToolId) => {
+
+  useEffect(() => {
+    if (!ready) return;
+    gameRef.current?.setTool(tool);
+    gameRef.current?.restoreStats(stats);
+    if (savedGame.buddy?.length) gameRef.current?.restoreBuddySnapshot(savedGame.buddy);
+    gameRef.current?.setStand(stand);
+    gameRef.current?.setSlowmo(slow);
+    gameRef.current?.setSound(sound);
+    gameRef.current?.setFollow(follow);
+    gameRef.current?.setBuddyColors(shirtColor, hairColor);
+    const savedArena = ENVS.find((env) => env.name === savedGame.placeName);
+    if (savedArena) gameRef.current?.selectEnvironment(savedArena.id);
+  // Restore the saved configuration once the 3D scene is ready.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
+
+  const writeSave = useCallback(() => {
+    const snapshot: SavedGame = { version: 1, stats, tool, placeName: place.name, buddy: gameRef.current?.getBuddySnapshot(), shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab };
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot)); } catch (err) { console.warn("WHATBASH could not save this browser's local save data.", err); }
+  }, [stats, tool, place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab]);
+
+  useEffect(() => { writeSave(); }, [writeSave]);
+  useEffect(() => {
+    const interval = window.setInterval(writeSave, 4000);
+    const onPageHide = () => writeSave();
+    window.addEventListener("pagehide", onPageHide);
+    return () => { window.clearInterval(interval); window.removeEventListener("pagehide", onPageHide); };
+  }, [writeSave]);
+
+  const selectTool = useCallback((id: ToolId) => {
     setToolState(id);
     gameRef.current?.setTool(id);
   }, []);
 
   const newPlace = useCallback(() => gameRef.current?.newPlace(), []);
-  const chooseArena = useCallback((id: string) => {\n    gameRef.current?.selectEnvironment(id);\n    const selected = ENVS.find((env) => env.id === id);\n    if (selected) setPlace({ name: selected.name, emoji: selected.emoji });\n  }, []);
+  const chooseArena = useCallback((id: string) => {
+    gameRef.current?.selectEnvironment(id);
+    const selected = ENVS.find((env) => env.id === id);
+    if (selected) setPlace({ name: selected.name, emoji: selected.emoji });
+  }, []);
   const applyStyle = useCallback((shirt: string, hair: string) => gameRef.current?.setBuddyColors(shirt, hair), []);
   const reset = useCallback(() => gameRef.current?.resetBuddy(), []);
 
