@@ -10,7 +10,7 @@ export interface RoomCallbacks {
   onError: (message: string) => void;
 }
 type Packet =
-  | { type: "hello"; name: string; color: string }
+  | { type: "hello"; playerId: string; name: string; color: string }
   | { type: "welcome"; state: RoomState }
   | { type: "state"; state: RoomState }
   | { type: "snapshot"; playerId: string; bodies: BuddyBodySave[] }
@@ -44,6 +44,7 @@ export class PeerRoom {
     this.callbacks = callbacks;
     this.name = name;
     this.color = color;
+    this.localId = `player-${Math.random().toString(36).slice(2, 12)}`;
   }
 
   get state() { return this.room; }
@@ -57,7 +58,6 @@ export class PeerRoom {
     this.isOwner = true;
     this.callbacks.onStatus("Opening room...");
     await this.openHostPeer(code);
-    this.localId = this.peer!.id;
     this.players = [{ id: this.localId, name: this.name, owner: true, color: this.color }];
     this.room.ownerId = this.localId;
     this.room.players = [...this.players];
@@ -96,7 +96,7 @@ export class PeerRoom {
     const peer = new Peer(undefined, { debug: 1 });
     this.peer = peer;
     await new Promise<void>((resolve, reject) => {
-      peer.on("open", (id) => { this.localId = id; resolve(); });
+      peer.on("open", () => resolve());
       peer.on("error", (error) => reject(new Error(error.message || "Could not connect to signaling service.")));
     });
     await this.connectToHost(code);
@@ -110,7 +110,7 @@ export class PeerRoom {
       const connection = peer.connect(peerIdFor(code), { reliable: true, serialization: "json" });
       this.hostConnection = connection;
       let gotWelcome = false;
-      connection.on("open", () => connection.send({ type: "hello", name: this.name, color: this.color } satisfies Packet));
+      connection.on("open", () => connection.send({ type: "hello", playerId: this.localId, name: this.name, color: this.color } satisfies Packet));
       connection.on("data", (raw) => {
         const packet = raw as Packet;
         if (packet.type === "reject") {
@@ -135,6 +135,7 @@ export class PeerRoom {
   }
 
   private acceptConnection(connection: DataConnection) {
+    let connectedPlayerId = "";
     connection.on("data", (raw) => {
       const packet = raw as Packet;
       if (packet.type === "hello") {
@@ -143,8 +144,12 @@ export class PeerRoom {
           connection.close();
           return;
         }
-        const player: RoomPlayer = { id: connection.peer, name: String(packet.name || "Player").slice(0, 18), color: /^#[0-9a-f]{6}$/i.test(packet.color) ? packet.color : "#2fd3cb", owner: false };
+        const player: RoomPlayer = { id: packet.playerId, name: String(packet.name || "Player").slice(0, 18), color: /^#[0-9a-f]{6}$/i.test(packet.color) ? packet.color : "#2fd3cb", owner: packet.playerId === this.room.ownerId };
+        connectedPlayerId = player.id;
+        const previous = this.connections.get(player.id);
         this.connections.set(player.id, connection);
+        if (previous && previous !== connection) previous.close();
+        this.players = this.players.filter((entry) => entry.id !== player.id);
         this.players.push(player);
         this.broadcastState(connection);
         connection.send({ type: "welcome", state: this.room! } satisfies Packet);
@@ -163,7 +168,7 @@ export class PeerRoom {
       }
     });
     connection.on("close", () => {
-      if (this.isOwner) this.removePlayer(connection.peer);
+      if (this.isOwner && connectedPlayerId && this.connections.get(connectedPlayerId) === connection) this.removePlayer(connectedPlayerId);
     });
   }
 
@@ -245,11 +250,9 @@ export class PeerRoom {
       if (promote) {
         this.isOwner = true;
         void this.openHostPeer(code).then(() => {
-          this.localId = this.peer!.id;
           if (this.room) {
             this.room.ownerId = this.localId;
-            this.players = this.players.filter((player) => player.id !== nextOwner);
-            this.players.unshift({ id: this.localId, name: this.name, color: this.color, owner: true });
+            this.players = this.players.filter((player) => player.id !== this.room!.ownerId || player.id === this.localId).map((player) => ({ ...player, owner: player.id === this.localId }));
             this.room.players = [...this.players];
             this.broadcastState();
             this.callbacks.onState(this.room);
@@ -286,11 +289,10 @@ export class PeerRoom {
         const peer = new Peer(peerIdFor(code), { debug: 1 });
         this.peer = peer;
         peer.on("open", (id) => {
-          this.localId = id;
           if (this.room) {
-            this.room.ownerId = id;
-            this.players = this.players.filter((player) => player.id !== next.id);
-            this.players.unshift({ id, name: this.name, color: this.color, owner: true });
+            const previousOwner = this.room.ownerId;
+            this.room.ownerId = this.localId;
+            this.players = this.players.filter((player) => player.id !== previousOwner).map((player) => ({ ...player, owner: player.id === this.localId }));
             this.broadcastState();
             this.callbacks.onState(this.room);
           }
@@ -310,7 +312,7 @@ export class PeerRoom {
     if (notify && this.isOwner && this.room) {
       const next = this.players.find((player) => player.id !== this.localId);
       if (next) {
-        const state = { ...this.room, ownerId: next.id, players: this.players.map((player) => ({ ...player, owner: player.id === next.id })) };
+        const state = { ...this.room, ownerId: next.id, players: this.players.filter((player) => player.id !== this.localId).map((player) => ({ ...player, owner: player.id === next.id })) };
         this.broadcast({ type: "handoff", nextOwner: next.id, state });
       }
     } else if (notify && this.hostConnection?.open) {
