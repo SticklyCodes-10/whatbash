@@ -180,6 +180,7 @@ export class Game {
     this.controls.maxDistance = 15;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.03;
     this.controls.target.set(0, 1, 0);
+    this.camera.lookAt(this.controls.target);
     this.controls.enablePan = false;
     this.controls.enabled = false;
     this.composer = new EffectComposer(this.renderer);
@@ -238,6 +239,7 @@ export class Game {
     this.rag.syncVisuals();
     this.camera.position.set(1.75, 1.65, 3.45);
     this.controls.target.set(0, 1.05, 0);
+    this.camera.lookAt(this.controls.target);
     this.controls.enabled = false;
     this.cb.onReady();
     this.cb.onPlace(this.env.def.name, this.env.def.emoji);
