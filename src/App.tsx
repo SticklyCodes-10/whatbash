@@ -306,6 +306,7 @@ export default function App() {
       <div ref={mountRef} className="absolute inset-0 cursor-crosshair" />
       <div ref={overlayRef} className="pointer-events-none absolute inset-0 overflow-hidden" />
       <div className="crt-ui-overlay" aria-hidden="true" />
+      {radiatorStage !== null && <div className="radiator-cinematic-shroud" aria-hidden="true" />}
 
 
 
