@@ -168,7 +168,8 @@ export class PeerRoom {
   }
 
   private handleHostPacket(packet: Packet) {
-    if (packet.type === "snapshots") {
+    if (packet.type === "state") this.applyState(packet.state);
+    else if (packet.type === "snapshots") {
       this.snapshots = packet.snapshots;
       this.callbacks.onSnapshots(this.snapshots);
     } else if (packet.type === "handoff") {
@@ -239,11 +240,6 @@ export class PeerRoom {
   private beginHandoff(nextOwner: string, code: string) {
     const promote = nextOwner === this.localId;
     this.isOwner = promote;
-    this.hostConnection?.close();
-    this.hostConnection = null;
-    this.connections.clear();
-    this.peer?.destroy();
-    this.peer = null;
     this.promotionTimer = window.setTimeout(() => {
       if (this.closed) return;
       if (promote) {
@@ -268,6 +264,11 @@ export class PeerRoom {
         });
       }
     }, 1800);
+    this.hostConnection?.close();
+    this.hostConnection = null;
+    this.connections.clear();
+    this.peer?.destroy();
+    this.peer = null;
   }
 
   private tryRecoverHost(code: string) {
