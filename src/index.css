@@ -123,3 +123,11 @@ body,
 @media(max-width:640px){.cyber-screen-effects{border-radius:0}.cyber-menu{max-height:96vh}.cyber-panel{max-width:100%}.cyber-menu-trigger{padding:9px 11px}}
 
 .cyber-hud-title{color:#a5f3fc!important;text-shadow:0 0 8px #06b6d4,0 0 22px rgba(34,211,238,.65),2px 2px 0 #701a75!important;letter-spacing:.08em}.cyber-score{border-color:rgba(103,232,249,.55)!important;background:rgba(2,6,23,.78)!important;color:#f0abfc!important;text-shadow:0 0 12px #d946ef;box-shadow:0 0 20px rgba(217,70,239,.16),inset 0 0 18px rgba(34,211,238,.08)}
+
+/* Refined borderless lens presentation and cinematic side-menu transitions */
+.cyber-screen-effects{display:none!important}
+.cyber-menu-side{max-height:min(92vh,860px);overflow-y:auto;border:1px solid rgba(103,232,249,.26);background:linear-gradient(145deg,rgba(3,10,24,.94),rgba(17,7,31,.91));box-shadow:18px 20px 80px rgba(0,0,0,.42),0 0 36px rgba(6,182,212,.12);transform-origin:left center}
+.cyber-menu-side:before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0px,rgba(255,255,255,.018) 1px,transparent 2px,transparent 5px)}
+.menu-exit{animation:menu-slide-out 1.2s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes menu-slide-out{0%{opacity:1;transform:translateX(0) scale(1);filter:blur(0)}55%{opacity:.55;transform:translateX(-28px) scale(.98);filter:blur(1px)}100%{opacity:0;transform:translateX(-90px) scale(.94);filter:blur(8px)}}
+@media(max-width:640px){.cyber-menu-side{max-height:94vh;max-width:calc(100vw - 24px)}.cyber-menu-side .cyber-stat-grid b{font-size:24px}}
