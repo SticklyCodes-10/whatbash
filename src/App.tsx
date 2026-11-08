@@ -180,7 +180,7 @@ export default function App() {
             🎲 New place
           </button>
         </div>
-      </div>
+      </div>}
 
       {/* Top-right: score */}
       {gameStarted && <div className="pointer-events-none absolute right-3 top-3 z-10 flex w-56 flex-col items-end gap-2 sm:right-4 sm:top-4 sm:w-72">
@@ -212,7 +212,7 @@ export default function App() {
             {Math.min(stats.combo, 10)}x COMBO
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Left: toggles */}
       {gameStarted && <div className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2 sm:left-4">
@@ -255,7 +255,7 @@ export default function App() {
           onClick={toggleMusic}
         >{musicPlaying ? "🎵" : "🎧"}</SideBtn>
         <SideBtn label="Help" on={showHelp} onClick={() => setShowHelp(!showHelp)}>❓</SideBtn>
-      </div>
+      </div>}
 
       {/* Help card */}
       {/*showHelp && ready && (
@@ -283,7 +283,7 @@ export default function App() {
         </div>
       )*/}
 
-      {gameStarted && <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center px-3"><div className="cyber-panel flex items-center gap-3 px-4 py-2"><span className="text-2xl">{current.emoji}</span><div className="min-w-0"><div className="cyber-kicker">EQUIPPED // {TOOLS.findIndex((t) => t.id === tool) + 1}/100</div><div className="font-bold">{current.name}</div></div><button onClick={() => { setMenuTab("loadout"); setMenuOpen(true); }} className="cyber-button">▦ TOOL ARMORY</button></div></div>
+      {gameStarted && <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center px-3"><div className="cyber-panel flex items-center gap-3 px-4 py-2"><span className="text-2xl">{current.emoji}</span><div className="min-w-0"><div className="cyber-kicker">EQUIPPED // {TOOLS.findIndex((t) => t.id === tool) + 1}/100</div><div className="font-bold">{current.name}</div></div><button onClick={() => { setMenuTab("loadout"); setMenuOpen(true); }} className="cyber-button">▦ TOOL ARMORY</button></div></div>}
       {menuOpen && ready && (
         <div className="absolute inset-0 z-40 flex items-center justify-start overflow-y-auto bg-gradient-to-r from-[#030712]/65 via-[#030712]/20 to-transparent p-3 backdrop-blur-[2px] sm:p-8">
           <div className="cyber-menu cyber-menu-side w-full max-w-[440px]">
