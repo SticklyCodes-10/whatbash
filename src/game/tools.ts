@@ -741,5 +741,6 @@ export const TOOLS: ToolDef[] = [
       "color": "#f472b6",
       "action": "grab"
     }
-  ]
+  ],
+  { id: "radiator", name: "RADIATOR", emoji: "☢️", hint: "A catastrophic orbital heat event. Click Buddy to initialize.", color: "#ff5b24", action: "radiator" }
 ];
