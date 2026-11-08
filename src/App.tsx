@@ -216,7 +216,7 @@ export default function App() {
 
   return (
     <div
-      className="fixed inset-0 overflow-hidden bg-slate-900 select-none text-white"
+      className={`fixed inset-0 overflow-hidden bg-slate-900 select-none text-white ${endingRun ? "run-ending-ui" : ""}`}
       style={{ fontFamily: "Fredoka, system-ui, sans-serif" }}
     >
       <div ref={mountRef} className="absolute inset-0 cursor-crosshair" />
@@ -237,7 +237,7 @@ export default function App() {
         </div>
       )}
 
-      {gameStarted && !endingRun && !runEnded && <><button onClick={() => { setMenuTab("play"); setMenuOpen(true); }} className="cyber-menu-trigger absolute right-3 bottom-28 z-20 sm:right-5">☰ MENU</button><button onClick={endRun} className="end-run-button absolute right-3 bottom-16 z-20 sm:right-5">☠ END RUN</button></>}
+      {gameStarted && !runEnded && <><button onClick={() => { setMenuTab("play"); setMenuOpen(true); }} className="cyber-menu-trigger absolute right-3 bottom-28 z-20 sm:right-5">☰ MENU</button><button onClick={endRun} className="end-run-button absolute right-3 bottom-16 z-20 sm:right-5">☠ END RUN</button></>}
       {gameStarted && !endingRun && !runEnded && <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-2 sm:left-4 sm:top-4">
         <div className="pointer-events-auto flex items-center gap-2">
           <div className="flex items-center gap-2 rounded-2xl border-2 border-white/30 bg-black/45 px-3 py-1.5 text-sm font-semibold backdrop-blur sm:text-base">
