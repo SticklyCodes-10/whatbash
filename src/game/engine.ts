@@ -86,6 +86,9 @@ export class Game {
   private lensPass: ShaderPass;
   private menuMode = true;
   private cameraTransition = 1;
+  private endRunElapsed = -1;
+  private endRunCallback: (() => void) | null = null;
+  private endRunBlastDone = false;
   world: CANNON.World;
   raycaster = new THREE.Raycaster();
   rag!: Ragdoll;
@@ -278,10 +281,22 @@ export class Game {
 
   // ------------------------------------------------------------ public API
   startGame() {
+    this.endRunElapsed = -1;
+    this.endRunCallback = null;
+    this.endRunBlastDone = false;
     this.menuMode = false;
     this.cameraTransition = 0;
     this.controls.enabled = false;
     this.following = true;
+    this.sfx.whoosh();
+  }
+  endRun(onComplete: () => void) {
+    if (this.endRunElapsed >= 0) return;
+    this.endRunElapsed = 0;
+    this.endRunCallback = onComplete;
+    this.endRunBlastDone = false;
+    this.following = false;
+    this.controls.enabled = false;
     this.sfx.whoosh();
   }
   getBuddySnapshot(): BuddyBodySave[] {
@@ -1152,8 +1167,27 @@ export class Game {
     }
     if (this.statsDirty) this.pushStats();
 
-    // Cinematic main-menu close-up eases into the gameplay camera.
-    if (this.menuMode) {
+    // End-run sequence: linger on Buddy, then trigger a final physics blast.
+    if (this.endRunElapsed >= 0) {
+      this.endRunElapsed += rawDt;
+      const center = this.rag.center(new THREE.Vector3());
+      const closePosition = center.clone().add(new THREE.Vector3(0.55, 0.42, 1.45));
+      this.camera.position.lerp(closePosition, 1 - Math.exp(-1.35 * rawDt));
+      this.controls.target.lerp(center, 1 - Math.exp(-1.8 * rawDt));
+      if (!this.endRunBlastDone && this.endRunElapsed >= 3.6) {
+        this.endRunBlastDone = true;
+        this.explode(center.clone(), 4.8, 48);
+        this.shake = 1.5;
+        this.flash.position.copy(center);
+        this.flash.intensity = 220;
+        this.sfx.explosion();
+      }
+      if (this.endRunElapsed >= 5.25) {
+        this.endRunElapsed = -1;
+        this.endRunCallback?.();
+        this.endRunCallback = null;
+      }
+    } else if (this.menuMode) {
       this.camera.position.lerp(new THREE.Vector3(1.75, 1.65, 3.45), 1 - Math.exp(-2.2 * rawDt));
       this.controls.target.lerp(new THREE.Vector3(0, 1.05, 0), 1 - Math.exp(-2.2 * rawDt));
     } else if (this.cameraTransition < 1) {
