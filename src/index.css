@@ -194,3 +194,18 @@ body,
   12%, 72% { opacity: 1; translate: 0 0; scale: 1; }
   100% { opacity: 0; translate: 0 -8px; scale: .96; }
 }
+
+/* Clean CRT treatment: scanlines and restrained pincushion-style edge falloff, no RGB split. */
+.crt-ui-overlay{position:absolute;inset:0;z-index:35;pointer-events:none;border-radius:clamp(10px,1.4vw,22px);box-shadow:inset 0 0 52px rgba(0,0,0,.38),inset 0 0 2px rgba(125,245,255,.24);background:repeating-linear-gradient(to bottom,rgba(0,0,0,.12) 0px,rgba(0,0,0,.12) 1px,transparent 1px,transparent 4px),radial-gradient(ellipse at center,transparent 69%,rgba(0,0,0,.19) 100%);opacity:.46}
+.crt-ui-overlay:after{content:"";position:absolute;inset:0;border:1px solid rgba(125,245,255,.12);border-radius:inherit;box-shadow:inset 0 0 18px rgba(34,211,238,.045)}
+.weapon-hotbar{display:flex;gap:clamp(3px,.55vw,8px);max-width:100%;padding:7px;border:1px solid rgba(103,232,249,.38);background:rgba(2,8,23,.86);backdrop-filter:blur(12px);box-shadow:0 0 24px rgba(34,211,238,.12);border-radius:12px}
+.weapon-slot{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:clamp(30px,5vw,52px);height:clamp(38px,6vw,58px);border:1px solid rgba(103,232,249,.22);background:rgba(8,47,73,.42);color:#ecfeff;border-radius:7px;cursor:pointer;min-width:0}
+.weapon-slot small{position:absolute;top:2px;left:5px;font-size:9px;font-weight:900;color:#67e8f9}
+.weapon-slot span{font-size:clamp(15px,2.2vw,23px);line-height:1.2;margin-top:7px}
+.weapon-slot.active{border-color:#67e8f9;background:rgba(8,145,178,.48);box-shadow:0 0 14px rgba(34,211,238,.36),inset 0 0 12px rgba(34,211,238,.12)}
+.cyber-armory{max-height:94vh;overflow:hidden;border-color:rgba(103,232,249,.5);box-shadow:0 0 80px rgba(0,0,0,.6),0 0 34px rgba(34,211,238,.14)}
+.cyber-close{display:grid;place-items:center;width:42px;height:42px;flex:none;border:1px solid rgba(251,113,133,.65);background:rgba(127,29,29,.32);color:#ffe4e6;font-size:22px;font-weight:900}
+.cyber-close:hover{background:rgba(190,24,93,.55)}
+.armory-slot{width:auto;min-width:74px;height:54px;padding:5px 9px;cursor:copy}
+.armory-slot b{max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px}
+@media(max-width:480px){.weapon-hotbar{gap:2px;padding:4px}.weapon-slot{width:29px;height:38px}.weapon-slot small{font-size:8px}.crt-ui-overlay{border-radius:0}}
