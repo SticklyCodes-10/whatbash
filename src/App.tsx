@@ -6,7 +6,7 @@ import { ENVS } from "./game/environment";
 import type { ToolId } from "./game/tools";
 import { cn } from "./utils/cn";
 
-type SavedGame = { version: 1; stats: Stats; tool: ToolId; placeName: string; buddy?: BuddyBodySave[]; shirtColor: string; hairColor: string; stand: boolean; slow: boolean; sound: boolean; follow: boolean; showHelp: boolean; menuTab: "play" | "loadout" | "style" | "arenas" };
+type SavedGame = { version: 1; stats: Stats; tool: ToolId; placeName: string; buddy?: BuddyBodySave[]; shirtColor: string; hairColor: string; stand: boolean; slow: boolean; sound: boolean; follow: boolean; showHelp: boolean; menuTab: "play" | "style" | "arenas"; loadout?: ToolId[] };
 const SAVE_KEY = "whatbash-save-v1";
 function readSave(): Partial<SavedGame> {
   try { const raw = localStorage.getItem(SAVE_KEY); return raw ? JSON.parse(raw) as Partial<SavedGame> : {}; } catch { return {}; }
@@ -25,7 +25,7 @@ export default function App() {
   const [place, setPlace] = useState({ name: savedGame.placeName ?? "…", emoji: "🎲" });
   const [model, setModel] = useState<{ text: string; custom: boolean } | null>(null);
   const [stand, setStand] = useState(savedGame.stand ?? true);
-  const [slow, setSlow] = useState(savedGame.slow ?? false);
+  const [slow, setSlow] = useState(false);
   const [sound, setSound] = useState(savedGame.sound ?? true);
   const [follow, setFollow] = useState(savedGame.follow ?? true);
   const [showHelp, setShowHelp] = useState(savedGame.showHelp ?? true);
@@ -38,7 +38,9 @@ export default function App() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const deployedVersion = useRef<string | null>(null);
   const runStartedAt = useRef<number>(Date.now());
-  const [menuTab, setMenuTab] = useState<"play" | "loadout" | "style" | "arenas">(savedGame.menuTab ?? "play");
+  const [menuTab, setMenuTab] = useState<"play" | "style" | "arenas">(savedGame.menuTab === "style" || savedGame.menuTab === "arenas" ? savedGame.menuTab : "play");
+  const [armoryOpen, setArmoryOpen] = useState(false);
+  const [loadout, setLoadout] = useState<ToolId[]>(() => Array.from({ length: 10 }, (_, i) => savedGame.loadout?.[i] ?? TOOLS[i]?.id ?? "boot"));
   const [toolSearch, setToolSearch] = useState("");
   const [shirtColor, setShirtColor] = useState(savedGame.shirtColor ?? "#2fd3cb");
   const [hairColor, setHairColor] = useState(savedGame.hairColor ?? "#2a1a12");
@@ -135,7 +137,7 @@ export default function App() {
     gameRef.current?.restoreStats(stats);
     if (savedGame.buddy?.length) gameRef.current?.restoreBuddySnapshot(savedGame.buddy);
     gameRef.current?.setStand(stand);
-    gameRef.current?.setSlowmo(slow);
+    gameRef.current?.setSlowmo(false);
     gameRef.current?.setSound(sound);
     gameRef.current?.setFollow(follow);
     gameRef.current?.setBuddyColors(shirtColor, hairColor);
@@ -146,9 +148,9 @@ export default function App() {
   }, [ready]);
 
   const writeSave = useCallback(() => {
-    const snapshot: SavedGame = { version: 1, stats, tool, placeName: place.name, buddy: gameRef.current?.getBuddySnapshot(), shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab };
+    const snapshot: SavedGame = { version: 1, stats, tool, loadout, placeName: place.name, buddy: gameRef.current?.getBuddySnapshot(), shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab };
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot)); } catch (err) { console.warn("WHATBASH could not save this browser's local save data.", err); }
-  }, [stats, tool, place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab]);
+  }, [stats, tool, loadout, place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab]);
 
   useEffect(() => {
     let confirmedLeave = false;
@@ -223,14 +225,17 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat) return;
       const k = e.key.toLowerCase();
-      const n = k === "0" ? 10 : parseInt(k, 10);
-      if (!Number.isNaN(n) && n >= 1 && n <= TOOLS.length) selectTool(TOOLS[n - 1].id);
+      const target = e.target as HTMLElement | null;
+      if (target?.matches("input, textarea, select, [contenteditable=true]")) return;
+      const n = k === "0" ? 9 : parseInt(k, 10) - 1;
+      if (n >= 0 && n < 10) selectTool(loadout[n]);
       else if (k === "r") reset();
       else if (k === "n") newPlace();
+      else if (k === "escape") setArmoryOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectTool, reset, newPlace]);
+  }, [selectTool, reset, newPlace, loadout]);
 
   const current = TOOLS.find((t) => t.id === tool) ?? TOOLS[0];
   const filteredTools = TOOLS.filter((t) => `${t.name} ${t.hint}`.toLowerCase().includes(toolSearch.toLowerCase()));
@@ -239,7 +244,7 @@ export default function App() {
 
   return (
     <div
-      className={`fixed inset-0 overflow-hidden bg-slate-900 select-none text-white ${endingRun ? "run-ending-ui" : ""}`}
+      className={`site-lens-frame fixed inset-0 overflow-hidden bg-slate-900 select-none text-white ${endingRun ? "run-ending-ui" : ""}`}
       style={{ fontFamily: "Fredoka, system-ui, sans-serif" }}
     >
       <div ref={mountRef} className="absolute inset-0 cursor-crosshair" />
@@ -263,7 +268,7 @@ export default function App() {
         </div>
       )}
 
-      {gameStarted && !runEnded && <><button onClick={() => { setMenuTab("play"); setMenuOpen(true); }} className="cyber-menu-trigger absolute right-3 bottom-28 z-20 sm:right-5">☰ MENU</button><button onClick={endRun} className="end-run-button absolute right-3 bottom-16 z-20 sm:right-5">☠ END RUN</button></>}
+      {gameStarted && !runEnded && <><button onClick={() => setArmoryOpen(true)} className="cyber-menu-trigger absolute right-3 bottom-36 z-20 sm:right-5">▦ ARMORY</button><button onClick={() => { setMenuTab("play"); setMenuOpen(true); }} className="cyber-menu-trigger absolute right-3 bottom-28 z-20 sm:right-5">☰ MENU</button><button onClick={endRun} className="end-run-button absolute right-3 bottom-16 z-20 sm:right-5">☠ END RUN</button></>}
       {gameStarted && !endingRun && !runEnded && <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-2 sm:left-4 sm:top-4">
         <div className="pointer-events-auto flex items-center gap-2">
           <div className="flex items-center gap-2 rounded-2xl border-2 border-white/30 bg-black/45 px-3 py-1.5 text-sm font-semibold backdrop-blur sm:text-base">
@@ -307,7 +312,7 @@ export default function App() {
             key={stats.combo}
             className="title-font combo-pop text-4xl tracking-wider text-orange-300 drop-shadow-[0_3px_0_rgba(0,0,0,0.5)]"
           >
-            {Math.min(stats.combo, 10)}x COMBO
+            {stats.combo}x COMBO
           </div>
         )}
       </div>}
@@ -381,15 +386,15 @@ export default function App() {
         </div>
       )*/}
 
-      {gameStarted && !endingRun && !runEnded && <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center px-3"><div className="cyber-panel flex items-center gap-3 px-4 py-2"><span className="text-2xl">{current.emoji}</span><div className="min-w-0"><div className="cyber-kicker">EQUIPPED // {TOOLS.findIndex((t) => t.id === tool) + 1}/100</div><div className="font-bold">{current.name}</div></div><button onClick={() => { setMenuTab("loadout"); setMenuOpen(true); }} className="cyber-button">▦ TOOL ARMORY</button></div></div>}
+      {gameStarted && !endingRun && !runEnded && <div className="absolute inset-x-0 bottom-2 z-20 flex justify-center px-2"><div className="weapon-hotbar">{loadout.map((id, index) => { const item = TOOLS.find((entry) => entry.id === id) ?? TOOLS[0]; const keyLabel = index === 9 ? "0" : String(index + 1); return <button key={index} onClick={() => selectTool(id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); const dropped = e.dataTransfer.getData("text/tool-id"); if (TOOLS.some((entry) => entry.id === dropped)) { setLoadout((old) => old.map((value, slot) => slot === index ? dropped : value)); selectTool(dropped); } }} className={`weapon-slot ${tool === id ? "active" : ""}`} title={`${keyLabel} · ${item.name}`}><small>{keyLabel}</small><span>{item.emoji}</span></button>; })}</div></div>}
       {menuOpen && ready && !endingRun && !runEnded && (
         <div className="absolute inset-0 z-40 flex items-center justify-start overflow-y-auto bg-gradient-to-r from-[#030712]/65 via-[#030712]/20 to-transparent p-3 backdrop-blur-[2px] sm:p-8">
           <div className={`cyber-menu cyber-menu-side w-full max-w-[440px] ${menuLeaving ? "menu-exit" : ""}`}>
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-cyan-300/20 p-5 sm:p-7"><div><div className="cyber-kicker">NEON DISTRICT // SYSTEM ONLINE</div><h1 className="cyber-title">WHAT<span>BASH</span></h1><p className="text-xs tracking-[.25em] text-cyan-100/60">RAGDOLL MAYHEM SIMULATOR · BUILD 2099.7</p></div></div>
             <div className="flex flex-wrap gap-2 border-b border-cyan-300/15 p-4">{(["play","arenas","style"] as const).map((tab) => <button key={tab} onClick={() => setMenuTab(tab)} className={`cyber-tab ${menuTab===tab?"active":""}`}>{tab==="play"?"▶ START":tab==="style"?"◈ CHARACTER":"⌖ AREA"}</button>)}</div>
             <div className="min-h-[300px] p-5 sm:p-7">
-              {menuTab === "play" && <div className="flex min-h-[270px] flex-col items-center justify-center gap-8 text-center"><div><div className="cyber-kicker mb-3">READY WHEN YOU ARE</div><h2 className="cyber-title">WHAT<span>BASH</span></h2><p className="mt-3 text-sm tracking-widest text-cyan-100/55">LET THE CHAOS BEGIN</p></div><button onClick={() => { if (gameStarted) { setMenuOpen(false); return; } gameRef.current?.startGame(); setMenuLeaving(true); window.setTimeout(() => { setMenuOpen(false); setGameStarted(true); setMenuLeaving(false); setBuddyQuote(["pls hemp me", "i need ai", "meow"][Math.floor(Math.random() * 3)]); }, 1250); }} className="cyber-button px-10 py-4 text-lg">{gameStarted ? "▶ RESUME" : "▶ START"}</button></div>}
-              {menuTab === "loadout" && <div><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><div className="cyber-kicker">100 WEAPON SYSTEMS</div><h2 className="text-2xl font-black">TOOL ARMORY</h2></div><input value={toolSearch} onChange={(e)=>setToolSearch(e.target.value)} placeholder="Search tools..." className="cyber-input w-full sm:w-64"/></div><div className="grid max-h-[48vh] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 lg:grid-cols-4">{filteredTools.map((t)=><button key={t.id} onClick={()=>{selectTool(t.id);}} className={`cyber-tool ${tool===t.id?"selected":""}`}><span className="text-2xl">{t.emoji}</span><span className="min-w-0 text-left"><b className="block truncate">{t.name}</b><small className="text-cyan-100/45">{t.action.toUpperCase()} CLASS</small></span><span className="ml-auto text-[10px] text-cyan-200/40">#{TOOLS.indexOf(t)+1}</span></button>)}</div><p className="mt-3 text-xs text-cyan-100/40">Choose any tool to equip it instantly. Click Buddy or props to use it.</p></div>}
+              {menuTab === "play" && <div className="flex min-h-[270px] flex-col items-center justify-center gap-8 text-center"><div><div className="cyber-kicker mb-3">READY WHEN YOU ARE</div><h2 className="cyber-title">WHAT<span>BASH</span></h2><p className="mt-3 text-sm tracking-widest text-cyan-100/55">LET THE CHAOS BEGIN</p></div><button onClick={() => { if (gameStarted) { setMenuOpen(false); return; } gameRef.current?.startGame(); setMenuLeaving(true); window.setTimeout(() => { setMenuOpen(false); setGameStarted(true); setMenuLeaving(false); }, 1250); }} className="cyber-button px-10 py-4 text-lg">{gameStarted ? "▶ RESUME" : "▶ START"}</button></div>}
+
               {menuTab === "style" && <div><div className="cyber-kicker">IDENTITY MOD // PROCEDURAL BUDDY</div><h2 className="mb-5 text-2xl font-black">CHARACTER CUSTOMIZATION</h2><div className="grid gap-5 sm:grid-cols-2"><label className="cyber-option">TORSO / ARMOR COLOR<input type="color" value={shirtColor} onChange={(e)=>{setShirtColor(e.target.value);applyStyle(e.target.value,hairColor);}} /></label><label className="cyber-option">HAIR / HEADGEAR COLOR<input type="color" value={hairColor} onChange={(e)=>{setHairColor(e.target.value);applyStyle(shirtColor,e.target.value);}} /></label></div><div className="mt-6 flex items-center gap-4 rounded-xl border border-cyan-200/15 bg-black/30 p-4"><div className="text-5xl">🧑‍🚀</div><div><b>LIVE COLOR SYNC</b><p className="text-sm text-cyan-100/50">Changes apply to the procedural Buddy in the active arena.</p></div></div></div>}
               {menuTab === "arenas" && <div><div className="cyber-kicker">SELECT YOUR DROP ZONE</div><h2 className="mb-4 text-2xl font-black">DISTRICT SELECT</h2><div className="grid max-h-[58vh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3">{ENVS.map((env)=><button key={env.id} onClick={()=>{chooseArena(env.id);}} className={`cyber-arena ${place.name===env.name?"selected":""}`}><span className="text-3xl">{env.emoji}</span><b>{env.name}</b><small>GRAVITY {Math.abs(env.gravity).toFixed(1)} · {env.groundKind.toUpperCase()}</small></button>)}</div></div>}
             </div>
@@ -398,6 +403,8 @@ export default function App() {
         </div>
       )}
 
+
+      {armoryOpen && gameStarted && !endingRun && !runEnded && <div className="absolute inset-0 z-[55] flex items-center justify-center bg-slate-950/80 p-3 backdrop-blur-md"><section className="cyber-menu cyber-armory w-full max-w-4xl p-4 sm:p-6"><header className="mb-4 flex items-center justify-between gap-3 border-b border-cyan-300/20 pb-4"><div><div className="cyber-kicker">FIELD EQUIPMENT // 100 SYSTEMS</div><h2 className="text-2xl font-black sm:text-3xl">TOOL ARMORY</h2><p className="text-xs text-cyan-100/50">Drag a weapon onto a numbered slot to equip it.</p></div><button aria-label="Close armory" title="Close armory" onClick={() => setArmoryOpen(false)} className="cyber-close">✕</button></header><input value={toolSearch} onChange={(e)=>setToolSearch(e.target.value)} placeholder="Search all 100 tools..." className="cyber-input mb-3 w-full"/><div className="grid max-h-[52vh] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 lg:grid-cols-4">{filteredTools.map((t)=><button key={t.id} draggable onDragStart={(e)=>e.dataTransfer.setData("text/tool-id",t.id)} onClick={()=>selectTool(t.id)} className={`cyber-tool ${tool===t.id?"selected":""}`}><span className="text-2xl">{t.emoji}</span><span className="min-w-0 text-left"><b className="block truncate">{t.name}</b><small className="text-cyan-100/45">{t.action.toUpperCase()} CLASS</small></span><span className="ml-auto text-[10px] text-cyan-200/40">#{TOOLS.indexOf(t)+1}</span></button>)}</div><div className="mt-4 flex flex-wrap gap-2">{loadout.map((id,index)=>{const item=TOOLS.find((entry)=>entry.id===id)??TOOLS[0];const label=index===9?"0":String(index+1);return <div key={index} onDragOver={(e)=>e.preventDefault()} onDrop={(e)=>{e.preventDefault();const dropped=e.dataTransfer.getData("text/tool-id");if(TOOLS.some((entry)=>entry.id===dropped)){setLoadout(old=>old.map((value,slot)=>slot===index?dropped:value));selectTool(dropped);}}} className="weapon-slot armory-slot"><small>{label}</small><span>{item.emoji}</span><b>{item.name}</b></div>})}</div></section></div>}
       {endingRun && <div className="end-run-glitch absolute inset-0 z-[70] pointer-events-none"><div className="end-run-scanlines" /><div className="end-run-flash" /><div className="absolute inset-0 flex items-center justify-center"><div className="title-font text-5xl sm:text-8xl tracking-widest text-red-100 glitch-label">404: END</div></div></div>}
       {runEnded && runSummary && <div className="absolute inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-[#05030b]/95 p-4 backdrop-blur-xl"><div className="end-summary w-full max-w-xl p-6 sm:p-9"><div className="cyber-kicker">SESSION TERMINATED // FINAL REPORT</div><h2 className="title-font my-3 text-6xl tracking-widest text-red-300 sm:text-8xl">404: END</h2><p className="mb-6 text-sm tracking-[.2em] text-cyan-100/55">BUDDY HAS LEFT THE CHAT.</p><div className="grid grid-cols-2 gap-3"><div><b>${runSummary.money.toLocaleString()}</b><span>CREDITS EARNED</span></div><div><b>{runSummary.kos}</b><span>KNOCKOUTS</span></div><div><b>{Math.round(runSummary.pain)}%</b><span>FINAL PAIN</span></div><div><b>{Math.floor((Date.now()-runStartedAt.current)/60000)}m {Math.floor(((Date.now()-runStartedAt.current)/1000)%60)}s</b><span>RUN DURATION</span></div></div><div className="mt-7 flex flex-wrap gap-3"><button onClick={() => window.location.reload()} className="cyber-button px-6 py-3">↻ NEW SESSION</button><span className="self-center text-xs text-cyan-100/40">Run ended. No save prompt will appear.</span></div></div></div>}
     </div>
