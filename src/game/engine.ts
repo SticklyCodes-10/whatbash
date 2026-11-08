@@ -674,7 +674,7 @@ export class Game {
   // ---------------------------------------------------------------- tools
   private useTool(r: RayInfo) {
     const hit = r.hit!;
-    this.spawnIdentityWeapon(hit.point, r.dir);
+    if (this.tool !== "radiator") this.spawnIdentityWeapon(hit.point, r.dir);
     switch (this.tool) {
       case "boot":
         this.melee(r, "boot", 11, true);
@@ -720,7 +720,8 @@ export class Game {
         }
         break;
       case "radiator":
-        this.cb.onRadiator();
+        if (this.rag.bodySet.has(hit.body)) this.cb.onRadiator();
+        else this.sfx.tick();
         break;
     }
   }
