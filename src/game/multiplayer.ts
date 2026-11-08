@@ -286,11 +286,20 @@ export class PeerRoom {
     const next = quantize(bodies);
     const previous = this.poseBaselines.get(this.localId);
     const lastSent = this.lastPoseSent.get(this.localId) ?? 0;
-    const full = !previous || now - lastSent > 1200;
+    const full = !previous || now - lastSent > 1500;
     const changes: number[] = [];
+    let maxChange = 0;
     if (full) changes.push(...next);
-    else for (let i = 0; i < next.length; i++) if (next[i] !== previous[i]) changes.push(i, next[i]);
-    if (!full && changes.length === 0 && now - lastSent < 1000) return;
+    else for (let i = 0; i < next.length; i++) {
+      if (next[i] !== previous[i]) {
+        changes.push(i, next[i]);
+        const delta = Math.abs(next[i] - previous[i]);
+        if (delta > maxChange) maxChange = delta;
+      }
+    }
+    if (!full && changes.length === 0 && now - lastSent < 1200) return;
+    const minInterval = maxChange > 40 ? 50 : maxChange > 8 ? 80 : 120;
+    if (!full && now - lastSent < minInterval) return;
     const packet: Packet = {
       type: "pose", playerId: this.localId,
       seq: (this.poseSequences.get(this.localId) ?? 0) + 1,
