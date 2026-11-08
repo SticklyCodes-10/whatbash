@@ -284,7 +284,7 @@ export class Game {
     this.following = true;
     this.sfx.whoosh();
   }
-  setTool(t: ToolId) {
+  restoreStats(stats: Stats) {\n    this.money = Math.max(0, stats.money || 0);\n    this.pain = Math.max(0, Math.min(100, stats.pain || 0));\n    this.combo = Math.max(0, stats.combo || 0);\n    this.kos = Math.max(0, stats.kos || 0);\n    this.pushStats();\n  }\n  setTool(t: ToolId) {
     this.tool = TOOLS.find((item) => item.id === t)?.action ?? t;
     this.sfx.tick();
   }
