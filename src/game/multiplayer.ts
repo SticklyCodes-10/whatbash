@@ -139,7 +139,7 @@ export class PeerRoom {
     connection.on("data", (raw) => {
       const packet = raw as Packet;
       if (packet.type === "hello") {
-        if (!this.room || this.players.length >= this.room.maxPlayers) {
+        if (!this.room || (this.players.length >= this.room.maxPlayers && !this.players.some((player) => player.id === packet.playerId))) {
           connection.send({ type: "reject", reason: "This room is full." } satisfies Packet);
           connection.close();
           return;
@@ -261,8 +261,7 @@ export class PeerRoom {
       } else {
         const peer = new Peer(undefined, { debug: 1 });
         this.peer = peer;
-        peer.on("open", (id) => {
-          this.localId = id;
+        peer.on("open", () => {
           void this.connectToHost(code).catch(() => this.tryRecoverHost(code));
         });
       }
