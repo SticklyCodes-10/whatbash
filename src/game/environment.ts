@@ -318,6 +318,8 @@ export class Environment {
   private eventPulse = 0;
   private plume?: THREE.Mesh;
   private eventSpin?: THREE.Object3D;
+  private eruptionDrops: THREE.Mesh[] = [];
+  private eruptionVelocities: THREE.Vector3[] = [];
   private disposables: { dispose(): void }[] = [];
 
   constructor(
@@ -456,12 +458,13 @@ export class Environment {
     this.group.add(distant);
     const rock = new THREE.MeshStandardMaterial({ color: d.decor === "craters" ? 0x34343d : 0x263044, roughness: 1 });
     const glow = new THREE.MeshBasicMaterial({ color: d.palette[0] ?? 0xff6b35 });
-    if (d.id.includes("volcano") || (d.decor === "cacti" && d.name.toLowerCase().includes("volcan"))) {
+    if (d.id.includes("volcano") || d.name.toLowerCase().includes("volcan")) {
       const cone = new THREE.Mesh(new THREE.ConeGeometry(13, 25, 9), rock); cone.position.set(0, 12, 0); distant.add(cone);
       const crater = new THREE.Mesh(new THREE.TorusGeometry(2.4, 0.48, 8, 28), glow); crater.rotation.x = Math.PI / 2; crater.position.y = 23.8; distant.add(crater);
       const lava = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.1, 5, 10), glow); lava.position.set(1.8, 20, 0.5); lava.rotation.z = -0.25; distant.add(lava);
       this.plume = new THREE.Mesh(new THREE.SphereGeometry(3.2, 12, 10), new THREE.MeshBasicMaterial({ color: 0x4b2522, transparent: true, opacity: 0.68 })); this.plume.position.set(0, 28, 0); distant.add(this.plume);
       this.eventLight.color.setHex(0xff4a12); this.eventLight.position.set(0, 22, 1);
+      for (let i = 0; i < 9; i++) { const magma = new THREE.Mesh(new THREE.SphereGeometry(rand(0.28, 0.62), 8, 6), new THREE.MeshBasicMaterial({ color: i % 2 ? 0xff4a12 : 0xffc247 })); magma.visible = false; distant.add(magma); this.eruptionDrops.push(magma); this.eruptionVelocities.push(new THREE.Vector3()); }
     } else if (d.decor === "neon") {
       const tower = new THREE.Mesh(new THREE.BoxGeometry(5, 24, 4), rock); tower.position.y = 12; distant.add(tower);
       const ring = new THREE.Mesh(new THREE.TorusGeometry(8, 0.32, 8, 48), glow); ring.position.y = 19; distant.add(ring); this.eventSpin = ring;
@@ -549,8 +552,12 @@ export class Environment {
     this.eventClock -= dt;
     if (this.eventClock <= 0) { this.eventPulse = 1; this.eventClock = rand(9, 18); }
     this.eventPulse = Math.max(0, this.eventPulse - dt * 0.28);
-    this.eventLight.intensity = this.eventPulse * (this.def.id.includes("volcano") ? 260 : 85);
-    if (this.plume) { this.plume.scale.setScalar(0.85 + Math.sin(performance.now() * 0.0008) * 0.12 + this.eventPulse * 0.9); this.plume.position.y += dt * (this.def.id.includes("volcano") ? 0.12 : 0.025); if (this.plume.position.y > 34) this.plume.position.y = 25; }
+    this.eventLight.intensity = this.eventPulse * (this.def.name.toLowerCase().includes("volcan") ? 260 : 85);
+    if (this.eventPulse > 0.96 && this.eruptionDrops.length && this.eruptionDrops.every((drop) => !drop.visible)) {
+      this.eruptionDrops.forEach((drop, i) => { drop.visible = true; drop.position.set(rand(-1.8, 1.8), rand(22, 24), rand(-1.5, 1.5)); this.eruptionVelocities[i].set(rand(-5, 5), rand(12, 23), rand(-5, 5)); });
+    }
+    this.eruptionDrops.forEach((drop, i) => { if (!drop.visible) return; this.eruptionVelocities[i].y -= 15 * dt; drop.position.addScaledVector(this.eruptionVelocities[i], dt); if (drop.position.y < 0) drop.visible = false; });
+    if (this.plume) { this.plume.scale.setScalar(0.85 + Math.sin(performance.now() * 0.0008) * 0.12 + this.eventPulse * 0.9); this.plume.position.y += dt * (this.def.name.toLowerCase().includes("volcan") ? 0.12 : 0.025); if (this.plume.position.y > 34) this.plume.position.y = 25; }
     if (this.eventSpin) this.eventSpin.rotation.y += dt * (this.def.decor === "craters" ? 0.025 : 0.18);
     if (this.snow) {
       const a = this.snow.geometry.getAttribute("position") as THREE.BufferAttribute;
