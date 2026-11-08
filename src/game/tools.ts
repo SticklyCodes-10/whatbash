@@ -23,5 +23,6 @@ export const TOOLS: ToolDef[] = [
   { id: "radiator", name: "RADIATOR", emoji: "☢️", hint: "A catastrophic orbital heat event. Click Buddy to initialize.", color: "#ff5b24", action: "radiator" },
   { id: "acid", name: "ACID", emoji: "🧪", hint: "Splash corrosive green acid onto Buddy.", color: "#a3e635", action: "acid" },
   { id: "knife", name: "KNIFE", emoji: "🔪", hint: "A sharp custom-model blade.", color: "#cbd5e1", action: "knife" },
-  { id: "wl201", name: "WL-201", emoji: "💉", hint: "Experimental injection. Buddy may feel weird.", color: "#c084fc", action: "wl201" }
+  { id: "wl201", name: "WL-201", emoji: "💉", hint: "Experimental injection. Buddy may feel weird.", color: "#c084fc", action: "wl201" },
+  { id: "fighterSpawner", name: "FIGHTER SPAWNER", emoji: "🥷", hint: "Deploy an AI ragdoll that attacks Buddy with random tools.", color: "#fb7185", action: "fighterSpawner" }
 ];
