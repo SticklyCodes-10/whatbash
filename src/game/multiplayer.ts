@@ -1,5 +1,6 @@
 import Peer, { type DataConnection } from "peerjs";
 import type { BuddyBodySave } from "./engine";
+import { BODY_KEYS } from "./ragdoll";
 
 export interface RoomPlayer { id: string; name: string; owner: boolean; color: string }
 export interface RoomState { code: string; mapId: string; maxPlayers: number; ownerId: string; players: RoomPlayer[] }
@@ -15,6 +16,7 @@ type Packet =
   | { type: "state"; state: RoomState }
   | { type: "snapshot"; playerId: string; bodies: BuddyBodySave[] }
   | { type: "snapshots"; snapshots: Record<string, BuddyBodySave[]> }
+  | { type: "pose"; playerId: string; seq: number; full: boolean; values: number[] }
   | { type: "leave"; playerId: string }
   | { type: "kick"; playerId: string }
   | { type: "map"; mapId: string }
@@ -24,6 +26,40 @@ type Packet =
 const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const peerIdFor = (code: string) => `whatbash${code.toLowerCase()}`;
 const makeCode = () => Array.from({ length: 6 }, () => CHARS[Math.floor(Math.random() * CHARS.length)]).join("");
+const VALUES_PER_BODY = 13;
+const POSITION_SCALE = 100;
+const QUATERNION_SCALE = 32767;
+const VELOCITY_SCALE = 50;
+const ANGULAR_SCALE = 100;
+const clampInt16 = (value: number) => Math.max(-32767, Math.min(32767, Math.round(value)));
+const quantize = (bodies: BuddyBodySave[]) => {
+  const values: number[] = [];
+  for (const body of bodies) {
+    values.push(
+      clampInt16(body.position[0] * POSITION_SCALE), clampInt16(body.position[1] * POSITION_SCALE), clampInt16(body.position[2] * POSITION_SCALE),
+      clampInt16(body.quaternion[0] * QUATERNION_SCALE), clampInt16(body.quaternion[1] * QUATERNION_SCALE), clampInt16(body.quaternion[2] * QUATERNION_SCALE), clampInt16(body.quaternion[3] * QUATERNION_SCALE),
+      clampInt16(body.velocity[0] * VELOCITY_SCALE), clampInt16(body.velocity[1] * VELOCITY_SCALE), clampInt16(body.velocity[2] * VELOCITY_SCALE),
+      clampInt16(body.angularVelocity[0] * ANGULAR_SCALE), clampInt16(body.angularVelocity[1] * ANGULAR_SCALE), clampInt16(body.angularVelocity[2] * ANGULAR_SCALE),
+    );
+  }
+  return values;
+};
+const expandPose = (values: number[]): BuddyBodySave[] => {
+  const bodies: BuddyBodySave[] = [];
+  for (let offset = 0; offset + VALUES_PER_BODY <= values.length; offset += VALUES_PER_BODY) {
+    const v = values.slice(offset, offset + VALUES_PER_BODY);
+    const key = BODY_KEYS[offset / VALUES_PER_BODY];
+    if (!key) break;
+    bodies.push({
+      key,
+      position: [v[0] / POSITION_SCALE, v[1] / POSITION_SCALE, v[2] / POSITION_SCALE],
+      quaternion: [v[3] / QUATERNION_SCALE, v[4] / QUATERNION_SCALE, v[5] / QUATERNION_SCALE, v[6] / QUATERNION_SCALE],
+      velocity: [v[7] / VELOCITY_SCALE, v[8] / VELOCITY_SCALE, v[9] / VELOCITY_SCALE],
+      angularVelocity: [v[10] / ANGULAR_SCALE, v[11] / ANGULAR_SCALE, v[12] / ANGULAR_SCALE],
+    });
+  }
+  return bodies;
+};
 
 export class PeerRoom {
   private peer: Peer | null = null;
@@ -31,6 +67,9 @@ export class PeerRoom {
   private connections = new Map<string, DataConnection>();
   private players: RoomPlayer[] = [];
   private snapshots: Record<string, BuddyBodySave[]> = {};
+  private poseBaselines = new Map<string, number[]>();
+  private poseSequences = new Map<string, number>();
+  private lastPoseSent = new Map<string, number>();
   private room: RoomState | null = null;
   private localId = "";
   private isOwner = false;
@@ -68,22 +107,17 @@ export class PeerRoom {
 
   private openHostPeer(code: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const peer = new Peer(peerIdFor(code), { debug: 1 });
+      const peer = new Peer(peerIdFor(code), { debug: 0 });
       this.peer = peer;
       let settled = false;
-      peer.on("open", () => {
-        settled = true;
-        resolve();
-      });
+      peer.on("open", () => { settled = true; resolve(); });
       peer.on("connection", (connection) => this.acceptConnection(connection));
       peer.on("error", (error) => {
         if (!settled) reject(error);
         else if (error.type === "disconnected") this.callbacks.onStatus("Signaling connection interrupted");
         else this.callbacks.onError(error.message || "Room connection error");
       });
-      peer.on("disconnected", () => {
-        if (!this.closed && this.isOwner) void peer.reconnect();
-      });
+      peer.on("disconnected", () => { if (!this.closed && this.isOwner) void peer.reconnect(); });
     });
   }
 
@@ -93,7 +127,7 @@ export class PeerRoom {
     this.closed = false;
     this.room = { code, mapId: "park", maxPlayers: 8, ownerId: "", players: [] };
     this.callbacks.onStatus("Finding room...");
-    const peer = new Peer(undefined, { debug: 1 });
+    const peer = new Peer(undefined, { debug: 0 });
     this.peer = peer;
     await new Promise<void>((resolve, reject) => {
       peer.on("open", () => resolve());
@@ -113,10 +147,7 @@ export class PeerRoom {
       connection.on("open", () => connection.send({ type: "hello", playerId: this.localId, name: this.name, color: this.color } satisfies Packet));
       connection.on("data", (raw) => {
         const packet = raw as Packet;
-        if (packet.type === "reject") {
-          reject(new Error(packet.reason));
-          return;
-        }
+        if (packet.type === "reject") { reject(new Error(packet.reason)); return; }
         if (packet.type === "welcome" || packet.type === "state") {
           this.applyState(packet.state);
           if (!gotWelcome) { gotWelcome = true; resolve(); }
@@ -127,9 +158,7 @@ export class PeerRoom {
         this.callbacks.onStatus("Host disconnected — reconnecting room...");
         this.tryRecoverHost(code);
       });
-      connection.on("error", (error) => {
-        if (!gotWelcome) reject(new Error(error.message || "Room not found. Check the code."));
-      });
+      connection.on("error", (error) => { if (!gotWelcome) reject(new Error(error.message || "Room not found. Check the code.")); });
       window.setTimeout(() => { if (!gotWelcome) reject(new Error("Room not found. Check the code and try again.")); }, 12000);
     });
   }
@@ -155,6 +184,11 @@ export class PeerRoom {
         connection.send({ type: "welcome", state: this.room! } satisfies Packet);
         connection.send({ type: "snapshots", snapshots: this.snapshots } satisfies Packet);
         this.callbacks.onState(this.room);
+      } else if (packet.type === "pose") {
+        if (!this.players.some((player) => player.id === packet.playerId)) return;
+        if (!this.applyPose(packet)) return;
+        this.broadcast(packet, connection);
+        this.callbacks.onSnapshots(this.snapshots);
       } else if (packet.type === "snapshot") {
         if (!this.players.some((player) => player.id === packet.playerId)) return;
         this.snapshots[packet.playerId] = packet.bodies;
@@ -172,11 +206,31 @@ export class PeerRoom {
     });
   }
 
+  private applyPose(packet: Extract<Packet, { type: "pose" }>) {
+    const previous = this.poseBaselines.get(packet.playerId);
+    if (!packet.full && !previous) return false;
+    const values = packet.full ? [...packet.values] : [...previous!];
+    if (!packet.full) {
+      for (let i = 0; i + 1 < packet.values.length; i += 2) values[packet.values[i]] = packet.values[i + 1];
+    }
+    if (values.length % VALUES_PER_BODY !== 0 || values.length / VALUES_PER_BODY > BODY_KEYS.length) return false;
+    this.poseBaselines.set(packet.playerId, values);
+    this.poseSequences.set(packet.playerId, packet.seq);
+    this.snapshots[packet.playerId] = expandPose(values);
+    return true;
+  }
+
   private handleHostPacket(packet: Packet) {
     if (packet.type === "state") this.applyState(packet.state);
     else if (packet.type === "snapshots") {
       this.snapshots = packet.snapshots;
+      for (const [id, bodies] of Object.entries(packet.snapshots)) {
+        const values = quantize(bodies);
+        this.poseBaselines.set(id, values);
+      }
       this.callbacks.onSnapshots(this.snapshots);
+    } else if (packet.type === "pose") {
+      if (this.applyPose(packet)) this.callbacks.onSnapshots(this.snapshots);
     } else if (packet.type === "handoff") {
       this.applyState(packet.state);
       this.beginHandoff(packet.nextOwner, packet.state.code);
@@ -194,8 +248,8 @@ export class PeerRoom {
     this.callbacks.onState(state);
   }
 
-  private broadcast(packet: Packet) {
-    for (const connection of this.connections.values()) if (connection.open) connection.send(packet);
+  private broadcast(packet: Packet, except?: DataConnection) {
+    for (const connection of this.connections.values()) if (connection !== except && connection.open) connection.send(packet);
   }
 
   private broadcastState(except?: DataConnection) {
@@ -203,13 +257,16 @@ export class PeerRoom {
     this.room.players = [...this.players];
     this.room.players.forEach((player) => player.owner = player.id === this.room!.ownerId);
     const packet: Packet = { type: "state", state: this.room };
-    for (const connection of this.connections.values()) if (connection !== except && connection.open) connection.send(packet);
+    this.broadcast(packet, except);
   }
 
   private removePlayer(id: string) {
     this.connections.delete(id);
     this.players = this.players.filter((player) => player.id !== id);
     delete this.snapshots[id];
+    this.poseBaselines.delete(id);
+    this.poseSequences.delete(id);
+    this.lastPoseSent.delete(id);
     if (!this.room) return;
     this.broadcastState();
     this.callbacks.onState(this.room);
@@ -218,13 +275,30 @@ export class PeerRoom {
   }
 
   sendSnapshot(bodies: BuddyBodySave[]) {
-    if (this.closed || !this.room) return;
+    if (this.closed || !this.room || !bodies.length) return;
+    const now = performance.now();
+    const next = quantize(bodies);
+    const previous = this.poseBaselines.get(this.localId);
+    const lastSent = this.lastPoseSent.get(this.localId) ?? 0;
+    const full = !previous || now - lastSent > 1200;
+    const changes: number[] = [];
+    if (full) changes.push(...next);
+    else for (let i = 0; i < next.length; i++) if (next[i] !== previous[i]) changes.push(i, next[i]);
+    if (!full && changes.length === 0 && now - lastSent < 1000) return;
+    const packet: Packet = {
+      type: "pose", playerId: this.localId,
+      seq: (this.poseSequences.get(this.localId) ?? 0) + 1,
+      full, values: changes,
+    };
+    this.poseBaselines.set(this.localId, next);
+    this.poseSequences.set(this.localId, packet.seq);
+    this.lastPoseSent.set(this.localId, now);
+    this.snapshots[this.localId] = expandPose(next);
     if (this.isOwner) {
-      this.snapshots[this.localId] = bodies;
-      this.broadcast({ type: "snapshots", snapshots: this.snapshots });
+      this.broadcast(packet);
       this.callbacks.onSnapshots(this.snapshots);
     } else if (this.hostConnection?.open) {
-      this.hostConnection.send({ type: "snapshot", playerId: this.localId, bodies } satisfies Packet);
+      this.hostConnection.send(packet);
     }
   }
 
@@ -260,11 +334,9 @@ export class PeerRoom {
           }
         }).catch(() => this.callbacks.onError("Room ownership transfer failed. The room may have closed."));
       } else {
-        const peer = new Peer(undefined, { debug: 1 });
+        const peer = new Peer(undefined, { debug: 0 });
         this.peer = peer;
-        peer.on("open", () => {
-          void this.connectToHost(code).catch(() => this.tryRecoverHost(code));
-        });
+        peer.on("open", () => { void this.connectToHost(code).catch(() => this.tryRecoverHost(code)); });
       }
     }, 1800);
     this.hostConnection?.close();
@@ -278,18 +350,15 @@ export class PeerRoom {
     if (this.closed || this.isOwner || !this.room) return;
     if (this.promotionTimer !== null) return;
     const next = this.players.find((player) => player.id !== this.room?.ownerId);
-    if (!next) {
-      this.callbacks.onState(null);
-      return;
-    }
+    if (!next) { this.callbacks.onState(null); return; }
     this.promotionTimer = window.setTimeout(() => {
       this.promotionTimer = null;
       if (next.id === this.localId) {
         this.isOwner = true;
         this.peer?.destroy();
-        const peer = new Peer(peerIdFor(code), { debug: 1 });
+        const peer = new Peer(peerIdFor(code), { debug: 0 });
         this.peer = peer;
-        peer.on("open", (id) => {
+        peer.on("open", () => {
           if (this.room) {
             const previousOwner = this.room.ownerId;
             this.room.ownerId = this.localId;
@@ -327,6 +396,9 @@ export class PeerRoom {
     this.peer = null;
     this.players = [];
     this.snapshots = {};
+    this.poseBaselines.clear();
+    this.poseSequences.clear();
+    this.lastPoseSent.clear();
     this.room = null;
     this.isOwner = false;
     this.callbacks.onSnapshots({});
