@@ -340,3 +340,5 @@ button,input,select{font:inherit}button{touch-action:manipulation}
 @keyframes connect-progress{0%{transform:translateX(-110%)}100%{transform:translateX(290%)}}
 @media(max-width:700px){.site-lens-frame:after{border-radius:0}.crt-ui-overlay{border-radius:0}}
 @media(prefers-reduced-motion:reduce){.startup-loading-prompt,.startup-loading-dot,.startup-loading-fill{animation:none}.startup-loading-fill{width:65%}}
+
+/* Deployment sync: all loading, cinematic framing and compact-device updates. */
