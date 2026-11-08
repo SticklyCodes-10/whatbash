@@ -22,6 +22,14 @@ export interface Stats {
   kos: number;
 }
 
+export interface BuddyBodySave {
+  key: BodyKey;
+  position: [number, number, number];
+  quaternion: [number, number, number, number];
+  velocity: [number, number, number];
+  angularVelocity: [number, number, number];
+}
+
 export interface RemotePlayerPose { id: string; name: string; color: string; bodies: BuddyBodySave[] }
 
 export interface GameCallbacks {
