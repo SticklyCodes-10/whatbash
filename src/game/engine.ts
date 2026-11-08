@@ -271,9 +271,10 @@ export class Game {
       for (const material of mats) {
         const standard = material as THREE.MeshStandardMaterial;
         if (!standard.color) continue;
-        const hex = standard.color.getHex();
-        if (hex === 0x2fd3cb || hex === 0x16a6a0) standard.color.set(shirt);
-        if (hex === 0x2a1a12) standard.color.set(hair);
+        if (standard.userData.baseHex === undefined) standard.userData.baseHex = standard.color.getHex();
+        const baseHex = standard.userData.baseHex as number;
+        if (baseHex === 0x2fd3cb || baseHex === 0x16a6a0) standard.color.set(shirt);
+        if (baseHex === 0x2a1a12) standard.color.set(hair);
       }
     });
   }
@@ -544,7 +545,11 @@ export class Game {
     this.fx.burst(p, 52, 8, [0xfff59d, 0xffffff, 0xffb84d, 0x22d3ee, 0xff4fd8], 0.18, 0.62, { gravity: 5, drag: 1.8 });
     this.fx.burst(p, 14, 2.4, [0xffffff, 0x67e8f9], 0.42, 0.22, { drag: 5, grow: 3 });
     this.fx.burst(p, 6, 1, [0xffffff], 0.5, 0.25, { drag: 4, grow: 2 });
-    this.shake = Math.min(1, this.shake + power * 0.02);
+    this.shake = Math.min(1.35, this.shake + power * 0.028);
+    this.flash.position.copy(p);
+    this.flash.color.setHex(tool === "hammer" ? 0xffb347 : tool === "bat" ? 0xff4fd8 : 0x67e8f9);
+    this.flash.intensity = Math.min(900, 260 + power * 28);
+    this.fx.burst(p, 18, 3.5, [0x67e8f9, 0xf0abfc, 0xffffff], 0.24, 0.8, { gravity: 1.5, drag: 1.2, grow: 1.5 });
     this.sfx.thud(power / 16, tool === "hammer" ? 0.7 : tool === "bat" ? 1.2 : 1);
   }
 
