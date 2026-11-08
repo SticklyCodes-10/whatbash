@@ -196,6 +196,27 @@ ENVS.push(
   { ...ENVS.find((e) => e.id === "snow")!, id: "crystal", name: "Crystal Cavern", emoji: "💎", skyTop: 0x082f49, skyBottom: 0x164e63, ground: 0x164e63, ground2: 0x67e8f9, groundKind: "stripes", decor: "pines", palette: [0x67e8f9, 0xc4b5fd, 0xf0abfc, 0xffffff] }
 );
 
+export const MAP_ATLAS_COUNT = 100;
+const atlasNames = ["Aurora","Ashen","Verdant","Crimson","Obsidian","Glacier","Solar","Eclipse","Tempest","Mirage","Violet","Emerald","Sapphire","Golden","Phantom","Titan","Frost","Ember","Storm","Celestial","Ancient","Radiant","Dusk","Dawn","Wild","Silent","Shattered","Electric","Frozen","Forgotten"];
+const baseMaps = [...ENVS];
+for (let i = 0; ENVS.length < MAP_ATLAS_COUNT; i++) {
+  const source = baseMaps[i % baseMaps.length];
+  const variant = Math.floor(i / baseMaps.length) + 1;
+  const hueShift = ((i * 0.071) % 0.34) - 0.17;
+  const tint = (hex: number, shift: number) => new THREE.Color(hex).offsetHSL(shift, 0.08 + (i % 4) * 0.025, ((i % 5) - 2) * 0.025).getHex();
+  ENVS.push({
+    ...source,
+    id: `atlas-${String(ENVS.length + 1).padStart(3, "0")}`,
+    name: `${atlasNames[i % atlasNames.length]} ${source.name} ${String(variant).padStart(2, "0")}` ,
+    skyTop: tint(source.skyTop, hueShift), skyBottom: tint(source.skyBottom, hueShift * 0.8),
+    ground: tint(source.ground, hueShift * 0.55), ground2: tint(source.ground2, hueShift),
+    sun: tint(source.sun, hueShift), hemiSky: tint(source.hemiSky, hueShift), hemiGround: tint(source.hemiGround, hueShift),
+    palette: source.palette.map((color) => tint(color, hueShift)),
+    groundKind: (["checker", "grid", "speckle", "stripes"] as const)[i % 4],
+    friction: Math.max(0.08, Math.min(0.9, source.friction + ((i % 7) - 3) * 0.035)),
+  });
+}
+
 export interface DynObj {
   mesh: THREE.Object3D;
   body: CANNON.Body;
@@ -291,6 +312,12 @@ export class Environment {
   dyn: DynObj[] = [];
   sunLight!: THREE.DirectionalLight;
   private snow?: THREE.Points;
+  private horizonEvent = new THREE.Group();
+  private eventLight = new THREE.PointLight(0xff6b35, 0, 90, 1.8);
+  private eventClock = 0;
+  private eventPulse = 0;
+  private plume?: THREE.Mesh;
+  private eventSpin?: THREE.Object3D;
   private disposables: { dispose(): void }[] = [];
 
   constructor(
@@ -406,6 +433,7 @@ export class Environment {
 
     // decorations & scenery
     this.buildDecor();
+    this.buildHorizonEvent();
     if (d.stars) this.buildStars();
     if (d.snow) this.buildSnow();
     if (d.sea) {
@@ -418,6 +446,50 @@ export class Environment {
 
     // physics props
     this.buildProps();
+  }
+
+
+  private buildHorizonEvent() {
+    const d = this.def;
+    const distant = this.horizonEvent;
+    distant.position.set(0, 0, -62);
+    this.group.add(distant);
+    const rock = new THREE.MeshStandardMaterial({ color: d.decor === "craters" ? 0x34343d : 0x263044, roughness: 1 });
+    const glow = new THREE.MeshBasicMaterial({ color: d.palette[0] ?? 0xff6b35 });
+    if (d.id.includes("volcano") || (d.decor === "cacti" && d.name.toLowerCase().includes("volcan"))) {
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(13, 25, 9), rock); cone.position.set(0, 12, 0); distant.add(cone);
+      const crater = new THREE.Mesh(new THREE.TorusGeometry(2.4, 0.48, 8, 28), glow); crater.rotation.x = Math.PI / 2; crater.position.y = 23.8; distant.add(crater);
+      const lava = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.1, 5, 10), glow); lava.position.set(1.8, 20, 0.5); lava.rotation.z = -0.25; distant.add(lava);
+      this.plume = new THREE.Mesh(new THREE.SphereGeometry(3.2, 12, 10), new THREE.MeshBasicMaterial({ color: 0x4b2522, transparent: true, opacity: 0.68 })); this.plume.position.set(0, 28, 0); distant.add(this.plume);
+      this.eventLight.color.setHex(0xff4a12); this.eventLight.position.set(0, 22, 1);
+    } else if (d.decor === "neon") {
+      const tower = new THREE.Mesh(new THREE.BoxGeometry(5, 24, 4), rock); tower.position.y = 12; distant.add(tower);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(8, 0.32, 8, 48), glow); ring.position.y = 19; distant.add(ring); this.eventSpin = ring;
+      this.eventLight.color.setHex(d.palette[0]); this.eventLight.position.set(0, 20, 2);
+    } else if (d.decor === "palms") {
+      const sun = new THREE.Mesh(new THREE.SphereGeometry(8, 24, 16), glow); sun.position.set(0, 17, -4); distant.add(sun);
+      const horizon = new THREE.Mesh(new THREE.BoxGeometry(70, 2, 2), rock); horizon.position.set(0, 1, 0); distant.add(horizon);
+      this.eventLight.color.setHex(0xffc078); this.eventLight.position.set(0, 17, 0);
+    } else if (d.decor === "pines" || d.decor === "trees") {
+      const mountain = new THREE.Mesh(new THREE.ConeGeometry(18, 26, 7), rock); mountain.position.y = 12; mountain.rotation.y = 0.4; distant.add(mountain);
+      const cloud = new THREE.Mesh(new THREE.SphereGeometry(5, 12, 8), new THREE.MeshBasicMaterial({ color: d.decor === "pines" ? 0xc7e9ff : 0xffffff, transparent: true, opacity: 0.6 })); cloud.position.set(2, 29, 1); distant.add(cloud); this.plume = cloud;
+      this.eventLight.color.setHex(d.decor === "pines" ? 0x9bdcff : 0xfff1c1); this.eventLight.position.set(0, 18, 0);
+    } else if (d.decor === "craters") {
+      const planet = new THREE.Mesh(new THREE.SphereGeometry(9, 20, 16), rock); planet.position.set(4, 20, 0); distant.add(planet);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(13, 0.45, 8, 48), glow); ring.position.set(4, 20, 0); ring.rotation.x = 0.7; distant.add(ring); this.eventSpin = ring;
+      this.eventLight.color.setHex(0xb8c8ff); this.eventLight.position.set(4, 20, 0);
+    } else if (d.decor === "cacti") {
+      const mesa = new THREE.Mesh(new THREE.CylinderGeometry(8, 11, 12, 7), rock); mesa.position.y = 5; distant.add(mesa);
+      const dust = new THREE.Mesh(new THREE.TorusGeometry(5, 0.7, 8, 24), glow); dust.position.y = 3; dust.rotation.x = Math.PI / 2; distant.add(dust); this.eventSpin = dust;
+      this.eventLight.color.setHex(0xffa34d); this.eventLight.position.set(0, 9, 0);
+    } else {
+      const peak = new THREE.Mesh(new THREE.ConeGeometry(14, 22, 8), rock); peak.position.y = 10; distant.add(peak);
+      const flare = new THREE.Mesh(new THREE.TorusGeometry(5, 0.5, 8, 32), glow); flare.position.y = 18; distant.add(flare); this.eventSpin = flare;
+      this.eventLight.color.setHex(d.palette[0] ?? 0xffffff); this.eventLight.position.set(0, 18, 0);
+    }
+    distant.add(this.eventLight);
+    distant.scale.setScalar(1.0);
+    this.eventClock = rand(2.5, 8);
   }
 
   private buildStars() {
@@ -474,6 +546,12 @@ export class Environment {
   }
 
   update(dt: number) {
+    this.eventClock -= dt;
+    if (this.eventClock <= 0) { this.eventPulse = 1; this.eventClock = rand(9, 18); }
+    this.eventPulse = Math.max(0, this.eventPulse - dt * 0.28);
+    this.eventLight.intensity = this.eventPulse * (this.def.id.includes("volcano") ? 260 : 85);
+    if (this.plume) { this.plume.scale.setScalar(0.85 + Math.sin(performance.now() * 0.0008) * 0.12 + this.eventPulse * 0.9); this.plume.position.y += dt * (this.def.id.includes("volcano") ? 0.12 : 0.025); if (this.plume.position.y > 34) this.plume.position.y = 25; }
+    if (this.eventSpin) this.eventSpin.rotation.y += dt * (this.def.decor === "craters" ? 0.025 : 0.18);
     if (this.snow) {
       const a = this.snow.geometry.getAttribute("position") as THREE.BufferAttribute;
       for (let i = 0; i < a.count; i++) {
