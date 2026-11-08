@@ -112,6 +112,7 @@ export class Game {
   private radiatorBodyTypes: Array<{ body: CANNON.Body; type: number }> = [];
   private radiatorFire = 0;
   private buddyWeirdElapsed = -1;
+  private fighters: Array<{ rag: Ragdoll; age: number; attackAt: number }> = [];
   world: CANNON.World;
   raycaster = new THREE.Raycaster();
   rag!: Ragdoll;
@@ -283,6 +284,8 @@ export class Game {
     this.container.parentElement?.style.setProperty("--buddy-weird", "0");
     this.buddySpeech = null;
     this.clearRadiatorObjects();
+    for (const fighter of this.fighters) { this.scene.remove(fighter.rag.root); for (const part of fighter.rag.list) this.world.removeBody(part.body); }
+    this.fighters = [];
     this.setRemotePlayers([]);
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
@@ -725,6 +728,9 @@ export class Game {
         } else {
           this.controls.enabled = true;
         }
+        break;
+      case "fighterSpawner":
+        if (this.rag.bodySet.has(hit.body)) this.spawnFighter();
         break;
       case "radiator":
         if (this.rag.bodySet.has(hit.body)) this.cb.onRadiator();
@@ -1334,6 +1340,73 @@ export class Game {
     bubble.style.top = `${y}px`;
   }
 
+
+  private spawnFighter() {
+    if (this.fighters.length >= 4) {
+      this.popup("MAX FIGHTERS", this.rag.center(new THREE.Vector3()), "zap");
+      return;
+    }
+    const fighter = new Ragdoll(this.world, defaultJoints());
+    buildProceduralBuddy(fighter, fighter.joints);
+    const center = this.rag.center(new THREE.Vector3());
+    const angle = Math.random() * Math.PI * 2;
+    fighter.reset(center.clone().add(new THREE.Vector3(Math.cos(angle) * 3.8, 0.03, Math.sin(angle) * 3.8)));
+    fighter.syncVisuals();
+    this.scene.add(fighter.root);
+    this.fighters.push({ rag: fighter, age: 0, attackAt: 0.8 });
+    this.sfx.whoosh();
+    this.popup("FIGHTER DEPLOYED", center.clone().add(new THREE.Vector3(0, 1.4, 0)), "word");
+  }
+
+  private updateFighters(dt: number) {
+    for (const fighter of [...this.fighters]) {
+      fighter.age += dt;
+      fighter.attackAt -= dt;
+      const target = this.rag.center(new THREE.Vector3());
+      const pelvis = fighter.rag.rb.pelvis.body;
+      const dx = target.x - pelvis.position.x;
+      const dz = target.z - pelvis.position.z;
+      const distance = Math.max(0.001, Math.hypot(dx, dz));
+      if (distance > 1.05) {
+        const force = Math.min(9, distance * 2.8);
+        for (const part of fighter.rag.list) {
+          if (part.key === "pelvis" || part.key === "chest") {
+            part.body.applyForce(new CANNON.Vec3((dx / distance) * force * part.body.mass, 0, (dz / distance) * force * part.body.mass));
+          }
+        }
+      } else if (fighter.attackAt <= 0) {
+        fighter.attackAt = rnd(1.05, 2.1);
+        const toolIndex = Math.floor(Math.random() * 10);
+        const powers = [11, 7.5, 13, 16, 19, 22, 25, 18, 14, 9];
+        const power = powers[toolIndex];
+        const hitBody = this.rag.rb[["head","chest","chest","chest","pelvis","chest","chest","head","chest","pelvis"][toolIndex]].body;
+        const dir = new THREE.Vector3(dx / distance, rnd(0.08, 0.45), dz / distance).normalize();
+        hitBody.applyImpulse(new CANNON.Vec3(dir.x * power * hitBody.mass, dir.y * power * hitBody.mass, dir.z * power * hitBody.mass));
+        hitBody.angularVelocity.x += rnd(-3, 3);
+        hitBody.angularVelocity.y += rnd(-4, 4);
+        hitBody.angularVelocity.z += rnd(-3, 3);
+        this.fx.burst(new THREE.Vector3(hitBody.position.x, hitBody.position.y, hitBody.position.z), 14, 2.4, [0xffd166,0xffffff,0x67e8f9], 0.18, 0.35, { gravity: 2, drag: 2 });
+        this.shake = Math.max(this.shake, 0.18);
+        this.sfx.zap();
+        this.popup(["KICK","PUNCH","BAT","HAMMER","BOMB","ROCKET","CANNON","ANVIL","ZAP","GRAB"][toolIndex], new THREE.Vector3(hitBody.position.x, hitBody.position.y + .35, hitBody.position.z), "word");
+      }
+      fighter.rag.syncVisuals();
+      if (fighter.age > 45) {
+        this.scene.remove(fighter.rag.root);
+        for (const part of fighter.rag.list) this.world.removeBody(part.body);
+        fighter.rag.root.traverse((node) => {
+          const mesh = node as THREE.Mesh;
+          if (mesh.isMesh) {
+            mesh.geometry.dispose();
+            const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            materials.forEach((material) => material.dispose());
+          }
+        });
+        this.fighters = this.fighters.filter((entry) => entry !== fighter);
+      }
+    }
+  }
+
   private updateBuddyWeird(dt: number) {
     if (this.buddyWeirdElapsed < 0) return;
     this.buddyWeirdElapsed += dt;
@@ -1385,6 +1458,7 @@ export class Game {
 
     this.world.step(1 / 60, dt, 5);
     this.updateRemoteAvatars(rawDt);
+    this.updateFighters(rawDt);
     this.updateRadiatorCutscene(rawDt);
     this.updateBuddyWeird(rawDt);
 
