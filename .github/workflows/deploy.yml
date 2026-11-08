@@ -29,6 +29,9 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Stamp deployed version
+        run: echo '{"version":"${GITHUB_SHA}"}' > public/version.json
+
       - name: Install dependencies
         run: npm install
 
