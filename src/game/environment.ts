@@ -491,6 +491,7 @@ export class Environment {
       this.eventLight.color.setHex(d.palette[0] ?? 0xffffff); this.eventLight.position.set(0, 18, 0);
     }
     distant.add(this.eventLight);
+    distant.traverse((object) => { const mesh = object as THREE.Mesh; if (!mesh.isMesh) return; this.disposables.push(mesh.geometry); if (Array.isArray(mesh.material)) this.disposables.push(...mesh.material); else this.disposables.push(mesh.material); });
     distant.scale.setScalar(1.0);
     this.eventClock = rand(2.5, 8);
   }
