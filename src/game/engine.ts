@@ -350,8 +350,28 @@ export class Game {
       for (const body of player.bodies) {
         const mesh = avatar.parts.get(body.key);
         if (!mesh) continue;
-        mesh.position.set(body.position[0], body.position[1], body.position[2]);
-        mesh.quaternion.set(body.quaternion[0], body.quaternion[1], body.quaternion[2], body.quaternion[3]);
+        const targetPosition = new THREE.Vector3(body.position[0], body.position[1], body.position[2]);
+        const targetQuaternion = new THREE.Quaternion(body.quaternion[0], body.quaternion[1], body.quaternion[2], body.quaternion[3]);
+        if (!mesh.userData.netInitialized) {
+          mesh.position.copy(targetPosition);
+          mesh.quaternion.copy(targetQuaternion);
+          mesh.userData.netInitialized = true;
+        }
+        mesh.userData.netTargetPosition = targetPosition;
+        mesh.userData.netTargetQuaternion = targetQuaternion;
+      }
+    }
+  }
+
+  private updateRemoteAvatars(dt: number) {
+    const alpha = 1 - Math.exp(-18 * Math.min(dt, 0.05));
+    for (const avatar of this.remoteAvatars.values()) {
+      for (const mesh of avatar.parts.values()) {
+        const targetPosition = mesh.userData.netTargetPosition as THREE.Vector3 | undefined;
+        const targetQuaternion = mesh.userData.netTargetQuaternion as THREE.Quaternion | undefined;
+        if (!targetPosition || !targetQuaternion) continue;
+        mesh.position.lerp(targetPosition, alpha);
+        mesh.quaternion.slerp(targetQuaternion, alpha);
       }
     }
   }
@@ -1205,6 +1225,7 @@ export class Game {
     const dt = rawDt * this.timeScale;
 
     this.world.step(1 / 60, dt, 5);
+    this.updateRemoteAvatars(rawDt);
 
     this.env?.update(rawDt);
 
