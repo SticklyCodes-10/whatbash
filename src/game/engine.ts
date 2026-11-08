@@ -179,9 +179,10 @@ export class Game {
     private overlay: HTMLElement,
     private cb: GameCallbacks
   ) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
+    const compactDevice = window.matchMedia("(max-width: 700px), (pointer: coarse)").matches;
+    this.renderer = new THREE.WebGLRenderer({ antialias: !compactDevice, powerPreference: "high-performance" });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, compactDevice ? 1.35 : 2));
+    this.renderer.shadowMap.enabled = !compactDevice;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.12;
@@ -337,11 +338,15 @@ export class Game {
     this.controls.enabled = false;
     this.buddySpeech && (this.buddySpeech.style.display = "none");
     const center = this.rag.center(new THREE.Vector3());
-    this.rag.reset(center.clone().add(new THREE.Vector3(-1.35, 0.03, 0)));
+    const compactView = this.container.clientWidth < 700;
+    const spacing = compactView ? 0.95 : 1.35;
+    this.rag.reset(center.clone().add(new THREE.Vector3(-spacing, 0.03, 0)));
     this.rag.stand = 1;
     const rival = new Ragdoll(this.world, defaultJoints());
     buildProceduralBuddy(rival, rival.joints);
-    rival.reset(center.clone().add(new THREE.Vector3(1.35, 0.03, 0)));
+    rival.reset(center.clone().add(new THREE.Vector3(spacing, 0.03, 0)));
+    rival.root.visible = true;
+    rival.root.scale.setScalar(compactView ? 1.08 : 1.16);
     rival.stand = 1;
     rival.root.traverse((node) => {
       const mesh = node as THREE.Mesh;
@@ -350,14 +355,20 @@ export class Game {
       for (const material of materials) {
         const colored = material as THREE.MeshStandardMaterial;
         if (colored.color) {
-          colored.color.set(0xb91c3b);
-          colored.emissive?.set(0x3d0714);
-          colored.emissiveIntensity = 0.22;
+          colored.color.set(0xf52250);
+          colored.emissive?.set(0x8f082b);
+          colored.emissiveIntensity = 0.42;
         }
       }
     });
     this.scene.add(rival.root);
     this.animeOpponent = rival;
+    const framingDistance = compactView ? 13.8 : 10.2;
+    this.camera.position.copy(center).add(new THREE.Vector3(0, compactView ? 4.0 : 3.0, framingDistance));
+    this.controls.target.copy(center).add(new THREE.Vector3(0, 1.0, 0));
+    this.camera.lookAt(this.controls.target);
+    this.camera.fov = compactView ? 58 : 52;
+    this.camera.updateProjectionMatrix();
     this.animeFightObjects = [];
     this.animeFightObjects.push(new THREE.AmbientLight(0x91baff, 0.65));
     const rim = new THREE.SpotLight(0x7dd3fc, 95, 24, Math.PI / 3, 0.55, 1.2);
@@ -412,7 +423,8 @@ export class Game {
       this.camera.position.lerpVectors(from, to, smooth((t - a) / (b - a)));
 
     if (t < 2.7) {
-      this.camera.position.lerp(midpoint.clone().add(new THREE.Vector3(0, 2.3, 8.5)), 1 - Math.exp(-2.5 * dt));
+      const compactView = this.container.clientWidth < 700;
+      this.camera.position.lerp(midpoint.clone().add(new THREE.Vector3(0, compactView ? 3.7 : 2.3, compactView ? 13.8 : 8.5)), 1 - Math.exp(-2.5 * dt));
       this.controls.target.lerp(midpoint.clone().add(new THREE.Vector3(0, 0.7, 0)), 1 - Math.exp(-3 * dt));
       this.rag.stand = Math.min(1, this.rag.stand + dt * 2);
       rival.stand = Math.min(1, rival.stand + dt * 2);
@@ -422,7 +434,8 @@ export class Game {
       const pelvis = this.rag.rb.pelvis.body;
       pelvis.applyForce(new CANNON.Vec3(direction.x * 105, 18, direction.z * 105));
       this.rag.rb.fArmA.body.applyImpulse(new CANNON.Vec3(direction.x * 3, 1.4, direction.z * 3));
-      this.camera.position.lerp(midpoint.clone().add(new THREE.Vector3(-3.5, 2.5, 6.5)), 1 - Math.exp(-4 * dt));
+      const compactView = this.container.clientWidth < 700;
+      this.camera.position.lerp(midpoint.clone().add(new THREE.Vector3(-2.2, compactView ? 3.8 : 2.5, compactView ? 12.5 : 8.5)), 1 - Math.exp(-4 * dt));
       this.controls.target.lerp(midpoint, 1 - Math.exp(-4 * dt));
       this.shake = Math.max(this.shake, 0.18);
     } else if (t < 22.5) {
@@ -470,7 +483,8 @@ export class Game {
         this.statsDirty = true;
       }
       const orbit = t < 13 ? 1 : -1;
-      const desired = midpoint.clone().add(new THREE.Vector3(Math.sin(t * 0.7) * 4.8 * orbit, 2.6 + Math.sin(t*1.8)*0.45, 6.5));
+      const compactView = this.container.clientWidth < 700;
+      const desired = midpoint.clone().add(new THREE.Vector3(Math.sin(t * 0.7) * (compactView ? 2.8 : 4.8) * orbit, (compactView ? 3.8 : 2.6) + Math.sin(t*1.8)*0.25, compactView ? 12.5 : 8.5));
       this.camera.position.lerp(desired, 1 - Math.exp(-3.8 * dt));
       this.controls.target.lerp(midpoint.clone().add(new THREE.Vector3(0,0.6,0)), 1 - Math.exp(-4 * dt));
       rival.stand = Math.max(0.08, rival.stand - dt * 0.24);
@@ -506,11 +520,13 @@ export class Game {
         this.popup("ULTIMATE FINISH // +$12,000", foe.clone().add(new THREE.Vector3(0,1.5,0)), "ko");
         this.statsDirty = true;
       }
-      this.camera.position.lerp(foe.clone().add(new THREE.Vector3(5,3.8,8)), 1 - Math.exp(-3 * dt));
+      const compactView = this.container.clientWidth < 700;
+      this.camera.position.lerp(foe.clone().add(new THREE.Vector3(compactView ? 2.8 : 5, compactView ? 4.2 : 3.8, compactView ? 13 : 8)), 1 - Math.exp(-3 * dt));
       this.controls.target.lerp(foe, 1 - Math.exp(-3 * dt));
       if (this.statsDirty) this.pushStats();
     } else if (t < 30) {
-      this.camera.position.lerp(this.rag.center(new THREE.Vector3()).add(new THREE.Vector3(4.8,2.8,7)), 1 - Math.exp(-2.5 * dt));
+      const compactView = this.container.clientWidth < 700;
+      this.camera.position.lerp(this.rag.center(new THREE.Vector3()).add(new THREE.Vector3(compactView ? 2.8 : 4.8, compactView ? 3.5 : 2.8, compactView ? 12 : 7)), 1 - Math.exp(-2.5 * dt));
       this.controls.target.lerp(this.rag.center(new THREE.Vector3()), 1 - Math.exp(-2.5 * dt));
       if (this.statsDirty) this.pushStats();
     } else {
