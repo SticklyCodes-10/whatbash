@@ -121,3 +121,5 @@ body,
 .cyber-option{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px;border:1px solid rgba(103,232,249,.2);background:rgba(8,47,73,.24);font-size:11px;font-weight:900;letter-spacing:.13em}
 .cyber-option input{width:52px;height:38px;padding:2px;border:1px solid rgba(103,232,249,.4);background:#07111e;cursor:pointer}
 @media(max-width:640px){.cyber-screen-effects{border-radius:0}.cyber-menu{max-height:96vh}.cyber-panel{max-width:100%}.cyber-menu-trigger{padding:9px 11px}}
+
+.cyber-hud-title{color:#a5f3fc!important;text-shadow:0 0 8px #06b6d4,0 0 22px rgba(34,211,238,.65),2px 2px 0 #701a75!important;letter-spacing:.08em}.cyber-score{border-color:rgba(103,232,249,.55)!important;background:rgba(2,6,23,.78)!important;color:#f0abfc!important;text-shadow:0 0 12px #d946ef;box-shadow:0 0 20px rgba(217,70,239,.16),inset 0 0 18px rgba(34,211,238,.08)}
