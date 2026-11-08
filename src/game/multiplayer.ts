@@ -252,7 +252,7 @@ export class PeerRoom {
         void this.openHostPeer(code).then(() => {
           if (this.room) {
             this.room.ownerId = this.localId;
-            this.players = this.players.filter((player) => player.id !== this.room!.ownerId || player.id === this.localId).map((player) => ({ ...player, owner: player.id === this.localId }));
+            this.players = this.players.map((player) => ({ ...player, owner: player.id === this.localId }));
             this.room.players = [...this.players];
             this.broadcastState();
             this.callbacks.onState(this.room);
