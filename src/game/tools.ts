@@ -740,22 +740,6 @@ export const TOOLS: ToolDef[] = [
       "hint": "Hammerfall — grab class impact.",
       "color": "#f472b6",
       "action": "grab"
-    },
-    {
-      "id": "tool-101",
-      "name": "Storm Finger",
-      "emoji": "🥾",
-      "hint": "Storm Finger — boot class impact.",
-      "color": "#a78bfa",
-      "action": "boot"
-    },
-    {
-      "id": "tool-102",
-      "name": "Magnet Crane",
-      "emoji": "🥊",
-      "hint": "Magnet Crane — fist class impact.",
-      "color": "#fbbf24",
-      "action": "fist"
     }
   ]
 ];
