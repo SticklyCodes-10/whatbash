@@ -9,6 +9,7 @@ import { Environment, ENVS } from "./environment";
 import type { EnvDef, DynObj } from "./environment";
 import { Particles } from "./particles";
 import { Sfx } from "./audio";
+import { TOOLS } from "./tools";
 import type { ToolId } from "./tools";
 
 export interface Stats {
@@ -249,8 +250,32 @@ export class Game {
 
   // ------------------------------------------------------------ public API
   setTool(t: ToolId) {
-    this.tool = t;
+    this.tool = TOOLS.find((item) => item.id === t)?.action ?? t;
     this.sfx.tick();
+  }
+  selectEnvironment(id: string) {
+    const def = ENVS.find((item) => item.id === id);
+    if (!def) return;
+    this.envIndex = ENVS.indexOf(def);
+    this.buildEnv(def);
+    this.rag.reset(new THREE.Vector3(0, 0.03, 0));
+    this.rag.syncVisuals();
+    this.sfx.whoosh();
+  }
+  setBuddyColors(shirt: string, hair: string) {
+    if (!this.rag) return;
+    this.rag.root.traverse((node) => {
+      const mesh = node as THREE.Mesh;
+      if (!mesh.isMesh || !mesh.material) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const material of mats) {
+        const standard = material as THREE.MeshStandardMaterial;
+        if (!standard.color) continue;
+        const hex = standard.color.getHex();
+        if (hex === 0x2fd3cb || hex === 0x16a6a0) standard.color.set(shirt);
+        if (hex === 0x2a1a12) standard.color.set(hair);
+      }
+    });
   }
   setStand(on: boolean) {
     if (this.rag) this.rag.standEnabled = on;
@@ -516,7 +541,8 @@ export class Game {
         new CANNON.Vec3(p.x - b.position.x, p.y - b.position.y, p.z - b.position.z)
       );
     }
-    this.fx.burst(p, 26, 6, [0xfff59d, 0xffffff, 0xffb84d], 0.14, 0.45, { gravity: 5, drag: 2 });
+    this.fx.burst(p, 52, 8, [0xfff59d, 0xffffff, 0xffb84d, 0x22d3ee, 0xff4fd8], 0.18, 0.62, { gravity: 5, drag: 1.8 });
+    this.fx.burst(p, 14, 2.4, [0xffffff, 0x67e8f9], 0.42, 0.22, { drag: 5, grow: 3 });
     this.fx.burst(p, 6, 1, [0xffffff], 0.5, 0.25, { drag: 4, grow: 2 });
     this.shake = Math.min(1, this.shake + power * 0.02);
     this.sfx.thud(power / 16, tool === "hammer" ? 0.7 : tool === "bat" ? 1.2 : 1);
