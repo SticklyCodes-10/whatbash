@@ -385,6 +385,7 @@ export class Game {
     }
     for (const object of this.animeFightObjects) {
       this.scene.remove(object);
+      if (object instanceof THREE.SpotLight) this.scene.remove(object.target);
       object.traverse?.((node) => {
         const mesh = node as THREE.Mesh;
         if (mesh.isMesh || (node as THREE.Points).isPoints) {
