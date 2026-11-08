@@ -502,6 +502,7 @@ export default function App() {
               {menuTab === "arenas" && <div><div className="cyber-kicker">SELECT YOUR DROP ZONE</div><h2 className="mb-4 text-2xl font-black">DISTRICT SELECT</h2><div className="grid max-h-[58vh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3">{ENVS.map((env)=><button key={env.id} onClick={()=>{chooseArena(env.id);}} disabled={!!roomState && roomState.ownerId !== roomRef.current?.playerId} className={`cyber-arena ${place.name===env.name?"selected":""}`}><span className="text-3xl">{env.emoji}</span><b>{env.name}</b><small>GRAVITY {Math.abs(env.gravity).toFixed(1)} · {env.groundKind.toUpperCase()}</small></button>)}</div></div>}
             </div>
             <div className="flex flex-wrap justify-between gap-2 border-t border-cyan-300/15 px-5 py-3 text-[10px] tracking-[.2em] text-cyan-100/35"><span>WHATBASH // NEURAL INTERFACE</span><span>{model ? `BUDDY MODEL: ${model.custom ? "CUSTOM" : "PROCEDURAL"}` : "BUDDY SYSTEM ONLINE"}</span><span>CLICK TO CAUSE CHAOS</span></div>
+            <div className="flex justify-center border-t border-cyan-300/10 px-5 py-4"><a href="https://vibercove.com/games/whatbash/" target="_blank" rel="noopener noreferrer" aria-label="WHATBASH listed on Viber Cove"><img src="https://vibercove.com/badges/listed.svg" alt="Viber Cove: Listed on Viber Cove" width="260" height="72" className="h-auto w-[220px] max-w-full opacity-85 transition hover:opacity-100" /></a></div>
           </div>
         </div>
       )}
