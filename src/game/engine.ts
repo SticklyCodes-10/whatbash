@@ -446,7 +446,7 @@ export class Game {
   }
 
   private onPointerDown = (e: PointerEvent) => {
-    if (!this.rag) return;
+    if (this.menuMode || !this.rag) return;
     this.sfx.unlock();
     if (e.pointerType === "mouse" && e.button !== 0) {
       this.controls.enabled = true;
