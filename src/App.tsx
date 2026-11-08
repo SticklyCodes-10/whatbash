@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Game } from "./game/engine";
-import type { Stats } from "./game/engine";
+import type { Stats, BuddyBodySave } from "./game/engine";
 import { TOOLS } from "./game/tools";
 import { ENVS } from "./game/environment";
 import type { ToolId } from "./game/tools";
 import { cn } from "./utils/cn";
 
-type SavedGame = { version: 1; stats: Stats; tool: ToolId; placeName: string; shirtColor: string; hairColor: string; stand: boolean; slow: boolean; sound: boolean; follow: boolean; showHelp: boolean; menuTab: "play" | "loadout" | "style" | "arenas" };\nconst SAVE_KEY = "whatbash-save-v1";\nfunction readSave(): Partial<SavedGame> {\n  try { const raw = localStorage.getItem(SAVE_KEY); return raw ? JSON.parse(raw) as Partial<SavedGame> : {}; } catch { return {}; }\n}\n\nexport default function App() {
+type SavedGame = { version: 1; stats: Stats; tool: ToolId; placeName: string; buddy?: BuddyBodySave[]; shirtColor: string; hairColor: string; stand: boolean; slow: boolean; sound: boolean; follow: boolean; showHelp: boolean; menuTab: "play" | "loadout" | "style" | "arenas" };\nconst SAVE_KEY = "whatbash-save-v1";\nfunction readSave(): Partial<SavedGame> {\n  try { const raw = localStorage.getItem(SAVE_KEY); return raw ? JSON.parse(raw) as Partial<SavedGame> : {}; } catch { return {}; }\n}\n\nexport default function App() {
   const mountRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
@@ -115,7 +115,7 @@ type SavedGame = { version: 1; stats: Stats; tool: ToolId; placeName: string; sh
     };
   }, []);
 
-\n  useEffect(() => {\n    if (!ready) return;\n    gameRef.current?.setTool(tool);\n    gameRef.current?.restoreStats(stats);\n    gameRef.current?.setStand(stand);\n    gameRef.current?.setSlowmo(slow);\n    gameRef.current?.setSound(sound);\n    gameRef.current?.setFollow(follow);\n    gameRef.current?.setBuddyColors(shirtColor, hairColor);\n    const savedArena = ENVS.find((env) => env.name === savedGame.placeName);\n    if (savedArena) gameRef.current?.selectEnvironment(savedArena.id);\n  // Restore the saved configuration once the 3D scene is ready.\n  // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [ready]);\n\n  useEffect(() => {\n    const snapshot: SavedGame = { version: 1, stats, tool, placeName: place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab };\n    try { localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot)); } catch (err) { console.warn("WHATBASH could not save this browser's local save data.", err); }\n  }, [stats, tool, place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab]);\n\n  const selectTool = useCallback((id: ToolId) => {
+\n  useEffect(() => {\n    if (!ready) return;\n    gameRef.current?.setTool(tool);\n    gameRef.current?.restoreStats(stats);\n    if (savedGame.buddy?.length) gameRef.current?.restoreBuddySnapshot(savedGame.buddy);\n    gameRef.current?.setStand(stand);\n    gameRef.current?.setSlowmo(slow);\n    gameRef.current?.setSound(sound);\n    gameRef.current?.setFollow(follow);\n    gameRef.current?.setBuddyColors(shirtColor, hairColor);\n    const savedArena = ENVS.find((env) => env.name === savedGame.placeName);\n    if (savedArena) gameRef.current?.selectEnvironment(savedArena.id);\n  // Restore the saved configuration once the 3D scene is ready.\n  // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [ready]);\n\n  const writeSave = useCallback(() => {\n    const snapshot: SavedGame = { version: 1, stats, tool, placeName: place.name, buddy: gameRef.current?.getBuddySnapshot(), shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab };\n    try { localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot)); } catch (err) { console.warn("WHATBASH could not save this browser's local save data.", err); }\n  }, [stats, tool, place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab]);\n\n  useEffect(() => { writeSave(); }, [writeSave]);\n  useEffect(() => {\n    const interval = window.setInterval(writeSave, 4000);\n    const onPageHide = () => writeSave();\n    window.addEventListener("pagehide", onPageHide);\n    return () => { window.clearInterval(interval); window.removeEventListener("pagehide", onPageHide); };\n  }, [writeSave]);\n\n  const selectTool = useCallback((id: ToolId) => {
     setToolState(id);
     gameRef.current?.setTool(id);
   }, []);
