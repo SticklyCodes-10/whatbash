@@ -203,7 +203,7 @@ export default function App() {
             model.custom ? "bg-emerald-600/80" : "bg-black/45 opacity-80"
           )}
         >
-          {model.custom ? "✅ " : "🧑 "}
+          {model.custom ? "✅ " : "TEST🧑 "}
           {model.text}
         </div>
       )}
