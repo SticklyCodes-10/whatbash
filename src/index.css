@@ -263,3 +263,66 @@ body,
   from { opacity: 0; transform: scale(.88) translateY(8px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
+
+
+/* Responsive layout pass: safe areas, readable panels and touch controls. */
+html,body,#root{width:100%;min-height:100%;margin:0;overflow:hidden}
+button,input,select{font:inherit}button{touch-action:manipulation}
+.site-lens-frame{height:100vh;height:100dvh;min-height:0}
+.cyber-menu,.cyber-menu-side,.cyber-armory{overscroll-behavior:contain}
+.cyber-tab,.cyber-button,.cyber-menu-trigger,.end-run-button,.cyber-close,.cyber-tool,.cyber-arena,.cyber-option{min-height:42px}
+.cyber-input{min-height:44px;width:100%;min-width:0}
+@media(max-width:700px){
+.main-menu-backdrop{align-items:stretch!important;justify-content:center!important;padding:8px!important;background:rgba(2,6,23,.78)!important}
+.cyber-menu-side{width:100%!important;max-width:560px!important;max-height:100%!important;height:auto;min-height:0;margin:auto;border-radius:14px;overflow-y:auto}
+.cyber-menu-side>div:first-child{padding:16px!important}
+.cyber-menu-side .cyber-title{font-size:clamp(38px,11vw,58px)}
+.cyber-menu-side>div:nth-child(2){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:10px!important}
+.cyber-menu-side>div:nth-child(2) .cyber-tab{padding:9px 6px;font-size:9px;letter-spacing:.08em}
+.cyber-menu-side>div:nth-child(3){padding:14px!important;min-height:0!important}
+.cyber-menu-side>div:nth-child(4){gap:7px;padding:10px 12px!important;font-size:8px;letter-spacing:.08em}
+.cyber-menu-side>div:nth-child(4) span:nth-child(2){display:none}
+.cyber-menu-side .cyber-option{padding:12px;font-size:10px;gap:8px}
+.cyber-menu-side .cyber-arena{min-height:100px;padding:9px}
+.game-place-controls{top:8px!important;left:8px!important;right:8px;max-width:calc(100vw - 16px)}
+.game-place-controls>div{max-width:100%;flex-wrap:wrap;gap:6px}
+.game-place-controls>div>div{max-width:min(55vw,240px);overflow:hidden}
+.game-place-controls>div>div span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.game-place-controls button{font-size:11px;padding:7px 9px}
+.game-score-panel{top:8px!important;right:8px!important;width:min(42vw,190px)!important;gap:6px}
+.game-score-panel .cyber-score{font-size:clamp(19px,5vw,27px);padding:4px 9px}
+.game-score-panel .text-xs{font-size:9px}.game-score-panel .h-5{height:12px}
+.game-side-controls{top:auto!important;bottom:76px!important;left:8px!important;transform:none!important;flex-direction:row!important;flex-wrap:wrap;max-width:calc(100vw - 16px);gap:5px!important}
+.game-side-controls button{width:36px;height:36px;font-size:17px}
+.game-action-buttons{right:8px!important;bottom:auto!important;top:112px!important;padding:8px 9px;font-size:9px;letter-spacing:.07em;clip-path:none;border-radius:8px}
+.game-menu-button{top:156px!important}.game-end-button{top:200px!important}
+.game-hotbar-wrap{bottom:7px!important;padding:0 6px!important;overflow-x:auto;justify-content:flex-start!important}
+.weapon-hotbar{width:max-content;max-width:100%;margin:auto;gap:3px;padding:5px}
+.weapon-slot{width:clamp(27px,8.2vw,40px);height:42px;flex:0 0 auto}
+.weapon-slot small{font-size:8px}
+.cyber-armory{max-height:calc(100dvh - 16px)!important;overflow-y:auto!important;padding:13px!important}
+.cyber-armory .grid.max-h-\[48vh\]{max-height:42dvh}
+.ransom-window{width:min(94vw,510px);max-height:calc(100dvh - 24px);overflow-y:auto}
+.ransom-window .p-5{padding:14px}.ransom-window h2{font-size:clamp(17px,5vw,22px)}
+.ransom-distraction{width:min(170px,42vw);padding:7px}
+.radiator-terminal{max-height:calc(100dvh - 24px);overflow-y:auto;padding:18px!important}
+.end-summary{padding:18px!important}.end-summary .grid>div{padding:12px}
+.update-notice{bottom:8px!important;gap:8px;padding:10px;font-size:12px}
+}
+@media(max-width:390px){
+.game-score-panel{width:38vw!important}.game-place-controls>div>div{max-width:48vw}
+.game-side-controls{bottom:70px!important;max-width:calc(100vw - 12px)}
+.game-side-controls button{width:32px;height:32px;font-size:15px}
+.weapon-slot{width:27px;height:38px}.weapon-hotbar{gap:2px;padding:4px}
+.cyber-menu-side>div:nth-child(2) .cyber-tab{font-size:8px}
+}
+@media(orientation:landscape) and (max-height:500px){
+.cyber-menu-side{max-height:calc(100dvh - 12px)!important}
+.cyber-menu-side>div:nth-child(3){padding:10px!important}
+.game-side-controls{top:auto!important;bottom:58px!important;left:8px!important;transform:none!important;flex-direction:row!important}
+.game-side-controls button{width:32px;height:32px}
+.game-action-buttons{top:auto!important;bottom:54px!important}
+.game-menu-button{bottom:96px!important}.game-end-button{bottom:138px!important}
+.game-hotbar-wrap{bottom:4px!important}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
