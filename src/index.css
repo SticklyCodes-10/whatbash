@@ -90,3 +90,34 @@ body,
   background: rgba(255, 255, 255, 0.3);
   border-radius: 6px;
 }
+
+
+/* Cyberpunk CRT / pincushion interface layer */
+.cyber-screen-effects{position:absolute;inset:0;z-index:30;pointer-events:none;border-radius:3.5% / 2.8%;box-shadow:inset 0 0 110px 24px rgba(0,0,0,.72),inset 0 0 3px 2px rgba(80,245,255,.35);background:repeating-linear-gradient(0deg,rgba(0,0,0,.13) 0px,rgba(0,0,0,.13) 1px,transparent 2px,transparent 4px),radial-gradient(ellipse at center,transparent 48%,rgba(0,0,0,.22) 100%);mix-blend-mode:screen;opacity:.75}
+.cyber-screen-effects:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,0,90,.035),transparent 12%,transparent 88%,rgba(0,220,255,.045));animation:crt-flicker 7s infinite}
+@keyframes crt-flicker{0%,97%,100%{opacity:1}98%{opacity:.78}99%{opacity:.94}}
+.cyber-kicker{font-size:9px;font-weight:900;letter-spacing:.28em;color:#67e8f9;text-shadow:0 0 12px #06b6d4}
+.cyber-readout{font-size:10px;letter-spacing:.18em;color:#f0abfc;text-shadow:0 0 10px #d946ef}
+.cyber-menu-trigger,.cyber-button{border:1px solid rgba(103,232,249,.7);background:linear-gradient(135deg,rgba(8,145,178,.85),rgba(112,26,117,.85));color:#ecfeff;font-size:11px;font-weight:900;letter-spacing:.14em;padding:11px 15px;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));box-shadow:0 0 18px rgba(34,211,238,.18),inset 0 0 16px rgba(255,255,255,.08);transition:filter .18s,transform .18s}
+.cyber-button:hover,.cyber-menu-trigger:hover{filter:brightness(1.35);transform:translateY(-2px)}
+.cyber-panel,.cyber-menu{border:1px solid rgba(103,232,249,.35);background:linear-gradient(145deg,rgba(5,15,32,.94),rgba(26,9,43,.92));box-shadow:0 0 50px rgba(6,182,212,.14),inset 0 0 35px rgba(217,70,239,.05);backdrop-filter:blur(18px)}
+.cyber-panel{clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px))}
+.cyber-menu{max-height:94vh;overflow-y:auto;border-radius:4px;position:relative}
+.cyber-menu:before{content:"";position:absolute;inset:0;pointer-events:none;border:1px solid rgba(34,211,238,.08);background:linear-gradient(115deg,transparent 0 48%,rgba(34,211,238,.025) 49%,transparent 50%);background-size:8px 8px}
+.cyber-title{font-size:clamp(40px,8vw,76px);font-weight:1000;line-height:.9;letter-spacing:-.06em;color:#f8fafc;text-shadow:0 0 12px rgba(34,211,238,.65),3px 3px 0 #701a75}
+.cyber-title span{color:#67e8f9}
+.cyber-tab{padding:10px 14px;border:1px solid rgba(103,232,249,.18);background:rgba(8,47,73,.32);color:rgba(207,250,254,.65);font-size:10px;font-weight:900;letter-spacing:.15em}
+.cyber-tab.active{border-color:#67e8f9;color:#ecfeff;background:rgba(8,145,178,.28);box-shadow:0 0 16px rgba(34,211,238,.2)}
+.cyber-stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.cyber-stat-grid>div{padding:18px;border:1px solid rgba(103,232,249,.22);background:rgba(8,47,73,.28)}
+.cyber-stat-grid b{display:block;font-size:30px;font-weight:1000;color:#f0abfc;text-shadow:0 0 12px rgba(217,70,239,.4)}
+.cyber-stat-grid span{font-size:9px;letter-spacing:.16em;color:rgba(207,250,254,.5)}
+.cyber-input{padding:11px 13px;border:1px solid rgba(103,232,249,.35);background:rgba(2,6,23,.8);color:#ecfeff;outline:none}
+.cyber-input:focus{border-color:#f0abfc;box-shadow:0 0 15px rgba(217,70,239,.2)}
+.cyber-tool,.cyber-arena{display:flex;align-items:center;gap:10px;min-width:0;padding:11px;border:1px solid rgba(103,232,249,.16);background:rgba(8,47,73,.25);text-align:left;transition:.15s}
+.cyber-tool:hover,.cyber-arena:hover,.cyber-tool.selected,.cyber-arena.selected{border-color:#67e8f9;background:rgba(8,145,178,.25);box-shadow:0 0 15px rgba(34,211,238,.13)}
+.cyber-arena{flex-direction:column;align-items:flex-start;min-height:116px}
+.cyber-arena small{font-size:9px;letter-spacing:.08em;color:rgba(207,250,254,.45)}
+.cyber-option{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px;border:1px solid rgba(103,232,249,.2);background:rgba(8,47,73,.24);font-size:11px;font-weight:900;letter-spacing:.13em}
+.cyber-option input{width:52px;height:38px;padding:2px;border:1px solid rgba(103,232,249,.4);background:#07111e;cursor:pointer}
+@media(max-width:640px){.cyber-screen-effects{border-radius:0}.cyber-menu{max-height:96vh}.cyber-panel{max-width:100%}.cyber-menu-trigger{padding:9px 11px}}
