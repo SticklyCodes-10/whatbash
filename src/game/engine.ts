@@ -496,33 +496,140 @@ export class Game {
 
   startRadiatorCutscene(onComplete: () => void) {
     if (this.radiatorElapsed >= 0 || !this.rag) return;
-    this.radiatorElapsed = 0; this.radiatorDone = onComplete;
-    this.following = false; this.controls.enabled = false; this.menuMode = false; this.radiatorFire = 1;
+    this.radiatorElapsed = 0;
+    this.radiatorDone = onComplete;
+    this.following = false;
+    this.controls.enabled = false;
+    this.menuMode = false;
+    this.radiatorFire = 1;
     this.radiatorBodyTypes = this.rag.list.map(({ body }) => {
       const saved = { body, type: body.type };
-      body.velocity.set(0, 0, 0); body.angularVelocity.set(0, 0, 0);
-      body.type = CANNON.Body.STATIC; body.updateMassProperties(); return saved;
+      body.velocity.set(0, 0, 0);
+      body.angularVelocity.set(0, 0, 0);
+      body.type = CANNON.Body.STATIC;
+      body.updateMassProperties();
+      return saved;
     });
-    this.rag.syncVisuals(); this.clearRadiatorObjects();
-    const starGeo = new THREE.BufferGeometry(); const coords = new Float32Array(5400);
-    for (let i = 0; i < 1800; i++) { coords[i*3]=rnd(-90,90); coords[i*3+1]=rnd(-55,55); coords[i*3+2]=rnd(-90,90); }
-    starGeo.setAttribute("position", new THREE.BufferAttribute(coords,3));
-    const stars = new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xb9eaff,size:0.16}));
-    this.scene.add(stars); this.radiatorObjects.push(stars); this.radiatorStars=stars;
-    const earth = new THREE.Mesh(new THREE.SphereGeometry(13,48,32),new THREE.MeshStandardMaterial({color:0x1263b5,roughness:0.82,emissive:0x08254c,emissiveIntensity:0.45}));
-    earth.position.set(0,-5,-48); this.scene.add(earth); this.radiatorObjects.push(earth); this.radiatorEarth=earth;
-    const clouds = new THREE.Mesh(new THREE.SphereGeometry(13.12,40,28),new THREE.MeshBasicMaterial({color:0x8edcff,transparent:true,opacity:0.15,wireframe:true}));
-    clouds.position.copy(earth.position); this.scene.add(clouds); this.radiatorObjects.push(clouds);
-    const ship = new THREE.Group(); ship.position.set(0,7,-23);
-    const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.8,2.1,10,8),new THREE.MeshStandardMaterial({color:0x343d52,metalness:0.9,roughness:0.24})); hull.rotation.x=Math.PI/2; ship.add(hull);
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(1,3.8,8),new THREE.MeshStandardMaterial({color:0xa8bacb,metalness:0.85,roughness:0.2})); nose.rotation.x=-Math.PI/2; nose.position.z=-6.5; ship.add(nose);
-    const glow = new THREE.Mesh(new THREE.CylinderGeometry(1.25,1.7,1.4,12),new THREE.MeshBasicMaterial({color:0x22d3ee})); glow.rotation.x=Math.PI/2; glow.position.z=5.2; ship.add(glow);
-    for(let i=0;i<4;i++){const fin=new THREE.Mesh(new THREE.BoxGeometry(0.18,2.8,3.1),new THREE.MeshStandardMaterial({color:0x1e293b,metalness:0.8}));fin.position.set(i<2?-1.5:1.5,i%2?-1.1:1.1,1.2);fin.rotation.z=(i%2?-1:1)*0.25;ship.add(fin);}
-    this.scene.add(ship); this.radiatorObjects.push(ship); this.radiatorShip=ship;
-    const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,1,20,1,true),new THREE.MeshBasicMaterial({color:0xfff0a6,transparent:true,opacity:0,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
-    this.scene.add(beam);this.radiatorObjects.push(beam);this.radiatorBeam=beam;
-    const core=new THREE.Mesh(new THREE.SphereGeometry(0.3,24,18),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,blending:THREE.AdditiveBlending}));
-    this.scene.add(core);this.radiatorObjects.push(core);this.radiatorCore=core;this.sfx.whoosh();
+    this.rag.syncVisuals();
+    this.clearRadiatorObjects();
+
+    // A fresh orbital-strike sequence: target lock, planetary fly-by, galactic
+    // weapon reveal, charge, beam ride, and impact. All geometry is procedural.
+    const starGeo = new THREE.BufferGeometry();
+    const coords = new Float32Array(24000);
+    for (let i = 0; i < 8000; i++) {
+      const radius = rnd(180, 2300);
+      const theta = rnd(0, Math.PI * 2);
+      const phi = Math.acos(rnd(-1, 1));
+      coords[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+      coords[i * 3 + 1] = radius * Math.cos(phi);
+      coords[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
+    }
+    starGeo.setAttribute("position", new THREE.BufferAttribute(coords, 3));
+    const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xc9e8ff, size: 2.1, sizeAttenuation: true }));
+    this.scene.add(stars); this.radiatorObjects.push(stars); this.radiatorStars = stars;
+
+    const earth = new THREE.Mesh(
+      new THREE.SphereGeometry(24, 64, 48),
+      new THREE.MeshStandardMaterial({ color: 0x1263b5, roughness: 0.85, emissive: 0x06234b, emissiveIntensity: 0.55 })
+    );
+    earth.position.set(0, 0, -115);
+    this.scene.add(earth); this.radiatorObjects.push(earth); this.radiatorEarth = earth;
+    const atmosphere = new THREE.Mesh(
+      new THREE.SphereGeometry(25.2, 48, 32),
+      new THREE.MeshBasicMaterial({ color: 0x55bfff, transparent: true, opacity: 0.18, side: THREE.BackSide, blending: THREE.AdditiveBlending })
+    );
+    atmosphere.position.copy(earth.position);
+    this.scene.add(atmosphere); this.radiatorObjects.push(atmosphere);
+    const cloudLayer = new THREE.Mesh(
+      new THREE.SphereGeometry(24.35, 40, 28),
+      new THREE.MeshBasicMaterial({ color: 0xb5eaff, transparent: true, opacity: 0.12, wireframe: true })
+    );
+    cloudLayer.position.copy(earth.position);
+    this.scene.add(cloudLayer); this.radiatorObjects.push(cloudLayer);
+
+    const makePlanet = (radius: number, color: number, position: THREE.Vector3) => {
+      const planet = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 32, 24),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.9, emissive: color, emissiveIntensity: 0.12 })
+      );
+      planet.position.copy(position);
+      this.scene.add(planet); this.radiatorObjects.push(planet);
+      return planet;
+    };
+    makePlanet(9, 0xd9a66b, new THREE.Vector3(-105, 34, -480));
+    const saturn = makePlanet(20, 0xc9b58e, new THREE.Vector3(125, 18, -880));
+    const saturnRing = new THREE.Mesh(
+      new THREE.RingGeometry(27, 48, 96),
+      new THREE.MeshBasicMaterial({ color: 0xd7c49b, side: THREE.DoubleSide, transparent: true, opacity: 0.65 })
+    );
+    saturnRing.position.copy(saturn.position);
+    saturnRing.rotation.x = Math.PI / 2.35;
+    this.scene.add(saturnRing); this.radiatorObjects.push(saturnRing);
+    makePlanet(13, 0xb8c8d8, new THREE.Vector3(-95, -55, -1110));
+
+    // A luminous galactic disc to give the camera a readable destination.
+    const galaxyGroup = new THREE.Group();
+    galaxyGroup.position.set(0, 0, -1540);
+    for (let arm = 0; arm < 5; arm++) {
+      const points: THREE.Vector3[] = [];
+      for (let i = 0; i < 1100; i++) {
+        const radius = 12 + i * 0.19;
+        const angle = arm * Math.PI * 2 / 5 + i * 0.018;
+        points.push(new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle * 1.7) * 5, Math.sin(angle) * radius * 0.48));
+      }
+      const geo = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: arm % 2 ? 0x8f9dff : 0x9deaff, transparent: true, opacity: 0.5 }));
+      galaxyGroup.add(line);
+    }
+    const galacticCore = new THREE.Mesh(
+      new THREE.SphereGeometry(18, 32, 24),
+      new THREE.MeshBasicMaterial({ color: 0xe4f5ff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending })
+    );
+    galaxyGroup.add(galacticCore);
+    this.scene.add(galaxyGroup); this.radiatorObjects.push(galaxyGroup);
+
+    const weapon = new THREE.Group();
+    weapon.position.set(0, 0, -1940);
+    const darkMetal = new THREE.MeshStandardMaterial({ color: 0x18243b, metalness: 0.95, roughness: 0.22 });
+    const brightMetal = new THREE.MeshStandardMaterial({ color: 0x9aacc5, metalness: 0.92, roughness: 0.18, emissive: 0x10243f });
+    const spine = new THREE.Mesh(new THREE.CylinderGeometry(5, 8, 170, 12), darkMetal);
+    spine.rotation.x = Math.PI / 2;
+    weapon.add(spine);
+    for (let i = 0; i < 6; i++) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(13 + i * 1.1, 1.8, 8, 48), brightMetal);
+      ring.position.z = 58 - i * 23;
+      weapon.add(ring);
+    }
+    for (const side of [-1, 1]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(5, 5, 155), brightMetal);
+      rail.position.set(side * 17, 0, 0);
+      weapon.add(rail);
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(2, 36, 90), darkMetal);
+      fin.position.set(side * 24, 0, -58);
+      weapon.add(fin);
+    }
+    const muzzle = new THREE.Mesh(
+      new THREE.CylinderGeometry(11, 18, 18, 16),
+      new THREE.MeshBasicMaterial({ color: 0x4bdcff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending })
+    );
+    muzzle.rotation.x = Math.PI / 2;
+    muzzle.position.z = 88;
+    weapon.add(muzzle);
+    this.scene.add(weapon); this.radiatorObjects.push(weapon); this.radiatorShip = weapon;
+
+    const beam = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.2, 2.2, 1, 24, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0xc9f7ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })
+    );
+    beam.rotation.x = Math.PI / 2;
+    this.scene.add(beam); this.radiatorObjects.push(beam); this.radiatorBeam = beam;
+    const core = new THREE.Mesh(
+      new THREE.SphereGeometry(7, 32, 24),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending })
+    );
+    this.scene.add(core); this.radiatorObjects.push(core); this.radiatorCore = core;
+    this.sfx.whoosh();
   }
   selectEnvironment(id: string) {
     const def = ENVS.find((item) => item.id === id);
@@ -1482,19 +1589,123 @@ export class Game {
   private updateRadiatorCutscene(dt: number) {
     if (this.radiatorElapsed < 0) {
       if (this.radiatorFire > 0 && this.rag && Math.random() < 0.42) {
-        const p=this.rag.center(new THREE.Vector3()); const x=p.x+rnd(-5,5), z=p.z+rnd(-5,5);
-        this.fx.burst(new THREE.Vector3(x,0.15,z),5,3.2,[0xff3b0a,0xff7a18,0xffd166],0.55,1.15,{gravity:-1.8,drag:1.4,grow:1.8});
-        this.smoke.burst(new THREE.Vector3(x,0.3,z),2,0.8,[0x242424,0x55504b],0.9,1.8,{gravity:-0.4,drag:1,grow:2.4});
-      } return;
+        const p = this.rag.center(new THREE.Vector3());
+        const x = p.x + rnd(-5, 5), z = p.z + rnd(-5, 5);
+        this.fx.burst(new THREE.Vector3(x, 0.15, z), 5, 3.2, [0xff3b0a, 0xff7a18, 0xffd166], 0.55, 1.15, { gravity: -1.8, drag: 1.4, grow: 1.8 });
+        this.smoke.burst(new THREE.Vector3(x, 0.3, z), 2, 0.8, [0x242424, 0x55504b], 0.9, 1.8, { gravity: -0.4, drag: 1, grow: 2.4 });
+      }
+      return;
     }
-    const t=this.radiatorElapsed; this.radiatorElapsed+=dt;
-    const ship=this.radiatorShip, beam=this.radiatorBeam, core=this.radiatorCore;
-    if(t<3.8){const u=THREE.MathUtils.clamp(t/3.8,0,1);this.camera.position.lerpVectors(new THREE.Vector3(0,10,8),new THREE.Vector3(0,8,-8),ease(u));this.controls.target.lerpVectors(new THREE.Vector3(0,0,0),new THREE.Vector3(0,5,-32),ease(u));if(ship){ship.rotation.y=Math.sin(t*0.65)*0.18+ease(u)*0.45;ship.rotation.z=Math.sin(t*0.9)*0.07;}if(this.radiatorStars)this.radiatorStars.rotation.y+=dt*0.012;}
-    else if(t<5.4){if(ship)ship.rotation.y+=dt*0.18;if(core){core.position.set(0,5.7,-31);core.scale.setScalar(0.35+Math.sin(t*18)*0.08+(t-3.8)*0.7);(core.material as THREE.MeshBasicMaterial).opacity=1;}if(beam){beam.position.set(0,-8,-38);beam.scale.set(1,25,1);beam.rotation.z=0.03;(beam.material as THREE.MeshBasicMaterial).opacity=0.9;}if(t>4.4&&Math.random()<0.35)this.sfx.tick();this.camera.position.lerp(new THREE.Vector3(0,7,-10),1-Math.exp(-2*dt));this.controls.target.lerp(new THREE.Vector3(0,3,-35),1-Math.exp(-2*dt));}
-    else if(t<7.4){if(beam){(beam.material as THREE.MeshBasicMaterial).opacity=1;beam.scale.set(1.8,45,1.8);}if(core){core.scale.setScalar(1.8+Math.sin(t*30)*0.45);(core.material as THREE.MeshBasicMaterial).opacity=1;}this.shake=Math.max(this.shake,2.8);this.flash.position.set(0,0,-35);this.flash.intensity=260;if(Math.random()<0.22)this.sfx.explosion();this.camera.position.lerp(new THREE.Vector3(0,5,-9),1-Math.exp(-4*dt));this.controls.target.lerp(new THREE.Vector3(0,-4,-45),1-Math.exp(-4*dt));}
-    else if(t<8.6){if(beam)(beam.material as THREE.MeshBasicMaterial).opacity=Math.max(0,1-(t-7.4)/1.2);if(core)(core.material as THREE.MeshBasicMaterial).opacity=Math.max(0,1-(t-7.4)/1.2);const buddy=this.rag.center(new THREE.Vector3());this.camera.position.lerp(buddy.clone().add(new THREE.Vector3(8,5,10)),1-Math.exp(-2.5*dt));this.controls.target.lerp(buddy,1-Math.exp(-2.5*dt));}
-    else if(t<13.6){const buddy=this.rag.center(new THREE.Vector3());this.camera.position.lerp(buddy.clone().add(new THREE.Vector3(5.2,3.1,6.8)),1-Math.exp(-3*dt));this.controls.target.lerp(buddy.clone().add(new THREE.Vector3(0,0.6,0)),1-Math.exp(-3*dt));this.shake=Math.max(this.shake,1.9);if(Math.random()<0.85){const body=this.rag.rb.chest.body.position;this.fx.burst(new THREE.Vector3(body.x+rnd(-0.45,0.45),body.y+rnd(-0.6,0.7),body.z+rnd(-0.35,0.35)),7,4.5,[0xffef9a,0xff8a1e,0xff3b0a],0.28,0.65,{gravity:-0.8,drag:1.4});if(Math.random()<0.18)this.sfx.zap();}if(t>8.8&&Math.random()<0.12)this.sfx.explosion();}
-    else{this.clearRadiatorObjects();for(const saved of this.radiatorBodyTypes){saved.body.type=saved.type;saved.body.updateMassProperties();saved.body.velocity.set(0,0,0);saved.body.angularVelocity.set(0,0,0);}this.radiatorBodyTypes=[];this.rag.syncVisuals();this.radiatorElapsed=-1;this.camera.position.copy(this.rag.center(new THREE.Vector3()).add(new THREE.Vector3(3.6,2.4,6.4)));this.controls.target.copy(this.rag.center(new THREE.Vector3()));this.controls.enabled=true;this.following=true;this.sfx.whoosh();const done=this.radiatorDone;this.radiatorDone=null;done?.();}
+    const t = this.radiatorElapsed;
+    this.radiatorElapsed += dt;
+    const ship = this.radiatorShip, beam = this.radiatorBeam, core = this.radiatorCore;
+    const earth = this.radiatorEarth;
+    const target = new THREE.Vector3();
+    const camera = new THREE.Vector3();
+    const smooth = (v: number) => { const x = THREE.MathUtils.clamp(v, 0, 1); return x * x * (3 - 2 * x); };
+    const travel = (from: THREE.Vector3, to: THREE.Vector3, start: number, end: number) =>
+      camera.lerpVectors(from, to, smooth((t - start) / (end - start)));
+
+    if (t < 2.5) {
+      const buddy = this.rag.center(new THREE.Vector3());
+      target.copy(buddy).add(new THREE.Vector3(0, 0.5, 0));
+      camera.copy(buddy).add(new THREE.Vector3(0, 5, 13));
+      this.camera.position.lerp(camera, 1 - Math.exp(-2.5 * dt));
+      this.controls.target.lerp(target, 1 - Math.exp(-2.5 * dt));
+      if (earth) earth.rotation.y += dt * 0.08;
+    } else if (t < 6.5) {
+      travel(new THREE.Vector3(0, 5, 13), new THREE.Vector3(0, 16, -82), 2.5, 6.5);
+      target.set(0, 0, -115);
+      this.camera.position.copy(camera);
+      this.controls.target.lerp(target, 1 - Math.exp(-3 * dt));
+      if (earth) earth.rotation.y += dt * 0.1;
+    } else if (t < 11.5) {
+      travel(new THREE.Vector3(0, 16, -82), new THREE.Vector3(-82, 48, -470), 6.5, 11.5);
+      target.set(0, 0, -650);
+      this.camera.position.copy(camera);
+      this.controls.target.lerp(target, 1 - Math.exp(-2 * dt));
+      if (this.radiatorStars) this.radiatorStars.rotation.y += dt * 0.006;
+    } else if (t < 15.2) {
+      travel(new THREE.Vector3(-82, 48, -470), new THREE.Vector3(0, 18, -1840), 11.5, 15.2);
+      target.set(0, 0, -1940);
+      this.camera.position.copy(camera);
+      this.controls.target.lerp(target, 1 - Math.exp(-3 * dt));
+      if (ship) ship.rotation.z = Math.sin(t * 1.3) * 0.025;
+      if (this.radiatorStars) this.radiatorStars.rotation.y += dt * 0.01;
+    } else if (t < 18) {
+      if (ship) ship.scale.setScalar(1 + Math.sin(t * 18) * 0.012);
+      if (core) {
+        core.position.set(0, 0, -1845);
+        core.scale.setScalar(0.7 + (t - 15.2) * 2 + Math.sin(t * 22) * 0.18);
+        (core.material as THREE.MeshBasicMaterial).opacity = 1;
+      }
+      if (beam) {
+        beam.position.set(0, 0, -1120);
+        beam.scale.set(1, 1650, 1);
+        (beam.material as THREE.MeshBasicMaterial).opacity = Math.max(0, (t - 16) / 1.5);
+      }
+      this.camera.position.lerp(new THREE.Vector3(0, 12, -1810), 1 - Math.exp(-3 * dt));
+      this.controls.target.lerp(new THREE.Vector3(0, 0, -1940), 1 - Math.exp(-3 * dt));
+      if (Math.random() < 0.28) this.sfx.tick();
+    } else if (t < 20.8) {
+      if (beam) {
+        beam.position.set(0, 0, -1010);
+        beam.scale.set(5.5, 1900, 5.5);
+        (beam.material as THREE.MeshBasicMaterial).opacity = 1;
+      }
+      if (core) {
+        core.position.set(0, 0, -1850);
+        core.scale.setScalar(8 + Math.sin(t * 30) * 1.2);
+        (core.material as THREE.MeshBasicMaterial).opacity = 1;
+      }
+      const u = smooth((t - 18) / 2.8);
+      camera.lerpVectors(new THREE.Vector3(0, 12, -1810), new THREE.Vector3(0, 5, -130), u);
+      target.set(0, 0, -115);
+      this.camera.position.copy(camera);
+      this.controls.target.lerp(target, 1 - Math.exp(-4 * dt));
+      this.shake = Math.max(this.shake, t > 20.1 ? 1.8 : 0.45);
+      if (t > 20.05) {
+        this.flash.position.set(0, 0, -115);
+        this.flash.intensity = 220;
+        if (Math.random() < 0.24) this.sfx.explosion();
+      }
+    } else if (t < 22.4) {
+      if (beam) (beam.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - (t - 20.8) / 1.6);
+      if (core) (core.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - (t - 20.8) / 1.6);
+      this.flash.intensity = Math.max(0, 220 * (1 - (t - 20.8) / 1.6));
+      const buddy = this.rag.center(new THREE.Vector3());
+      this.camera.position.lerp(buddy.clone().add(new THREE.Vector3(9, 5, 12)), 1 - Math.exp(-2.8 * dt));
+      this.controls.target.lerp(buddy, 1 - Math.exp(-2.8 * dt));
+    } else if (t < 27) {
+      const buddy = this.rag.center(new THREE.Vector3());
+      this.camera.position.lerp(buddy.clone().add(new THREE.Vector3(5.5, 3.5, 8)), 1 - Math.exp(-2.5 * dt));
+      this.controls.target.lerp(buddy.clone().add(new THREE.Vector3(0, 0.5, 0)), 1 - Math.exp(-2.5 * dt));
+      if (Math.random() < 0.5) {
+        const body = this.rag.rb.chest.body.position;
+        this.fx.burst(new THREE.Vector3(body.x + rnd(-0.5, 0.5), body.y + rnd(-0.7, 0.7), body.z + rnd(-0.4, 0.4)), 5, 3.5, [0xffef9a, 0xff8a1e, 0xff3b0a], 0.25, 0.55, { gravity: -0.8, drag: 1.4 });
+      }
+    } else {
+      this.clearRadiatorObjects();
+      for (const saved of this.radiatorBodyTypes) {
+        saved.body.type = saved.type;
+        saved.body.updateMassProperties();
+        saved.body.velocity.set(0, 0, 0);
+        saved.body.angularVelocity.set(0, 0, 0);
+      }
+      this.radiatorBodyTypes = [];
+      this.rag.syncVisuals();
+      this.radiatorElapsed = -1;
+      const buddy = this.rag.center(new THREE.Vector3());
+      this.camera.position.copy(buddy.clone().add(new THREE.Vector3(3.6, 2.4, 6.4)));
+      this.controls.target.copy(buddy);
+      this.controls.enabled = true;
+      this.following = true;
+      this.flash.intensity = 0;
+      this.sfx.whoosh();
+      const done = this.radiatorDone;
+      this.radiatorDone = null;
+      done?.();
+    }
   }
   private loop = () => {
     if (this.disposed) return;
