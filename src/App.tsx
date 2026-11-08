@@ -21,6 +21,68 @@ export default function App() {
   const [sound, setSound] = useState(true);
   const [follow, setFollow] = useState(true);
   const [showHelp, setShowHelp] = useState(true);
+  const [musicTracks, setMusicTracks] = useState<string[]>([]);
+  const [musicPlaying, setMusicPlaying] = useState(false);
+  const musicRef = useRef<HTMLAudioElement | null>(null);
+  const musicTracksRef = useRef<string[]>([]);
+  const currentTrackRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const player = new Audio();
+    player.volume = 0.35;
+    musicRef.current = player;
+    const playAnother = () => {
+      const tracks = musicTracksRef.current;
+      if (!tracks.length) {
+        setMusicPlaying(false);
+        return;
+      }
+      const choices = tracks.filter((track) => track !== currentTrackRef.current);
+      const next = (choices.length ? choices : tracks)[Math.floor(Math.random() * (choices.length || tracks.length))];
+      currentTrackRef.current = next;
+      player.src = `/music/${encodeURIComponent(next)}`;
+      void player.play().then(() => setMusicPlaying(true)).catch(() => setMusicPlaying(false));
+    };
+    player.addEventListener("ended", playAnother);
+    fetch("/music/tracks.json")
+      .then((response) => {
+        if (!response.ok) throw new Error("Music playlist not found");
+        return response.json() as Promise<unknown>;
+      })
+      .then((data) => {
+        const tracks = Array.isArray(data)
+          ? data.filter((item): item is string => typeof item === "string" && item.toLowerCase().endsWith(".mp3"))
+          : [];
+        musicTracksRef.current = tracks;
+        setMusicTracks(tracks);
+      })
+      .catch((err) => console.info("Add MP3 filenames to public/music/tracks.json to enable music.", err));
+    return () => {
+      player.pause();
+      player.removeEventListener("ended", playAnother);
+      musicRef.current = null;
+    };
+  }, []);
+
+  const toggleMusic = useCallback(() => {
+    const player = musicRef.current;
+    if (!player) return;
+    if (!player.paused) {
+      player.pause();
+      setMusicPlaying(false);
+      return;
+    }
+    if (player.src) {
+      void player.play().then(() => setMusicPlaying(true)).catch(() => setMusicPlaying(false));
+      return;
+    }
+    const tracks = musicTracksRef.current;
+    if (!tracks.length) return;
+    const next = tracks[Math.floor(Math.random() * tracks.length)];
+    currentTrackRef.current = next;
+    player.src = `/music/${encodeURIComponent(next)}`;
+    void player.play().then(() => setMusicPlaying(true)).catch(() => setMusicPlaying(false));
+  }, []);
 
   useEffect(() => {
     if (!mountRef.current || !overlayRef.current) return;
@@ -179,6 +241,11 @@ export default function App() {
             gameRef.current?.setSound(!sound);
           }}
         >{sound ? "🔊" : "🔇"}</SideBtn>
+        <SideBtn
+          label={musicPlaying ? "Pause background music" : musicTracks.length ? "Play random background music" : "Add MP3 files to public/music"}
+          on={musicPlaying}
+          onClick={toggleMusic}
+        >{musicPlaying ? "🎵" : "🎧"}</SideBtn>
         <SideBtn label="Help" on={showHelp} onClick={() => setShowHelp(!showHelp)}>❓</SideBtn>
       </div>
 
