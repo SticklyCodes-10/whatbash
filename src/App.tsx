@@ -115,13 +115,13 @@ type SavedGame = { version: 1; stats: Stats; tool: ToolId; placeName: string; sh
     };
   }, []);
 
-\n  useEffect(() => {\n    if (!ready) return;\n    gameRef.current?.setTool(tool);\n    gameRef.current?.setStand(stand);\n    gameRef.current?.setSlowmo(slow);\n    gameRef.current?.setSound(sound);\n    gameRef.current?.setFollow(follow);\n    gameRef.current?.setBuddyColors(shirtColor, hairColor);\n    const savedArena = ENVS.find((env) => env.name === savedGame.placeName);\n    if (savedArena) gameRef.current?.selectEnvironment(savedArena.id);\n  // Restore the saved configuration once the 3D scene is ready.\n  // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [ready]);\n\n  useEffect(() => {\n    const snapshot: SavedGame = { version: 1, stats, tool, placeName: place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab };\n    try { localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot)); } catch (err) { console.warn("WHATBASH could not save this browser's local save data.", err); }\n  }, [stats, tool, place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab]);\n\n  const selectTool = useCallback((id: ToolId) => {
+\n  useEffect(() => {\n    if (!ready) return;\n    gameRef.current?.setTool(tool);\n    gameRef.current?.restoreStats(stats);\n    gameRef.current?.setStand(stand);\n    gameRef.current?.setSlowmo(slow);\n    gameRef.current?.setSound(sound);\n    gameRef.current?.setFollow(follow);\n    gameRef.current?.setBuddyColors(shirtColor, hairColor);\n    const savedArena = ENVS.find((env) => env.name === savedGame.placeName);\n    if (savedArena) gameRef.current?.selectEnvironment(savedArena.id);\n  // Restore the saved configuration once the 3D scene is ready.\n  // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [ready]);\n\n  useEffect(() => {\n    const snapshot: SavedGame = { version: 1, stats, tool, placeName: place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab };\n    try { localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot)); } catch (err) { console.warn("WHATBASH could not save this browser's local save data.", err); }\n  }, [stats, tool, place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab]);\n\n  const selectTool = useCallback((id: ToolId) => {
     setToolState(id);
     gameRef.current?.setTool(id);
   }, []);
 
   const newPlace = useCallback(() => gameRef.current?.newPlace(), []);
-  const chooseArena = useCallback((id: string) => gameRef.current?.selectEnvironment(id), []);
+  const chooseArena = useCallback((id: string) => {\n    gameRef.current?.selectEnvironment(id);\n    const selected = ENVS.find((env) => env.id === id);\n    if (selected) setPlace({ name: selected.name, emoji: selected.emoji });\n  }, []);
   const applyStyle = useCallback((shirt: string, hair: string) => gameRef.current?.setBuddyColors(shirt, hair), []);
   const reset = useCallback(() => gameRef.current?.resetBuddy(), []);
 
