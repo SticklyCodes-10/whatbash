@@ -5,6 +5,8 @@ import { TOOLS } from "./game/tools";
 import { ENVS } from "./game/environment";
 import type { ToolId } from "./game/tools";
 import { cn } from "./utils/cn";
+import { PeerRoom } from "./game/multiplayer";
+import type { RoomState } from "./game/multiplayer";
 
 type SavedGame = { version: 1; stats: Stats; tool: ToolId; placeName: string; buddy?: BuddyBodySave[]; shirtColor: string; hairColor: string; stand: boolean; slow: boolean; sound: boolean; follow: boolean; showHelp: boolean; menuTab: "play" | "style" | "arenas"; loadout?: ToolId[] };
 const SAVE_KEY = "whatbash-save-v1";
@@ -38,8 +40,16 @@ export default function App() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const deployedVersion = useRef<string | null>(null);
   const runStartedAt = useRef<number>(Date.now());
-  const [menuTab, setMenuTab] = useState<"play" | "style" | "arenas">(savedGame.menuTab === "style" || savedGame.menuTab === "arenas" ? savedGame.menuTab : "play");
+  const [menuTab, setMenuTab] = useState<"play" | "style" | "arenas" | "multiplayer">(savedGame.menuTab === "style" || savedGame.menuTab === "arenas" ? savedGame.menuTab : "play");
   const [armoryOpen, setArmoryOpen] = useState(false);
+  const roomRef = useRef<PeerRoom | null>(null);
+  const [roomState, setRoomState] = useState<RoomState | null>(null);
+  const [roomStatus, setRoomStatus] = useState("");
+  const [roomError, setRoomError] = useState("");
+  const [roomScreen, setRoomScreen] = useState<"home" | "create" | "join">("home");
+  const [joinCode, setJoinCode] = useState("");
+  const [createMap, setCreateMap] = useState(ENVS[0].id);
+  const [createMaxPlayers, setCreateMaxPlayers] = useState(4);
   const [loadout, setLoadout] = useState<ToolId[]>(() => Array.from({ length: 10 }, (_, i) => savedGame.loadout?.[i] ?? TOOLS[i]?.id ?? "boot"));
   const [toolSearch, setToolSearch] = useState("");
   const [shirtColor, setShirtColor] = useState(savedGame.shirtColor ?? "#2fd3cb");
@@ -153,6 +163,13 @@ export default function App() {
   }, [stats, tool, loadout, place.name, shirtColor, hairColor, stand, slow, sound, follow, showHelp, menuTab]);
 
   useEffect(() => {
+    if (!roomState || !gameStarted) return;
+    const timer = window.setInterval(() => { const snapshot = gameRef.current?.getBuddySnapshot(); if (snapshot) roomRef.current?.sendSnapshot(snapshot); }, 80);
+    return () => window.clearInterval(timer);
+  }, [roomState, gameStarted]);
+
+  useEffect(() => () => { void roomRef.current?.leave(false); }, []);
+  useEffect(() => {
     let confirmedLeave = false;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (runEnded) return;
@@ -214,10 +231,38 @@ export default function App() {
 
   const newPlace = useCallback(() => gameRef.current?.newPlace(), []);
   const chooseArena = useCallback((id: string) => {
+    if (roomRef.current?.state && !roomRef.current.owner) return;
     gameRef.current?.selectEnvironment(id);
+    roomRef.current?.setMap(id);
     const selected = ENVS.find((env) => env.id === id);
     if (selected) setPlace({ name: selected.name, emoji: selected.emoji });
   }, []);
+  const makePeerRoom = () => new PeerRoom({
+    onState: (state) => {
+      setRoomState(state);
+      if (state) { const arena = ENVS.find((env) => env.id === state.mapId); if (arena) { gameRef.current?.selectEnvironment(arena.id); setPlace({ name: arena.name, emoji: arena.emoji }); } }
+    },
+    onSnapshots: (snapshots) => {
+      const room = roomRef.current?.state; const localId = roomRef.current?.playerId;
+      const remote = Object.entries(snapshots).filter(([id]) => id !== localId).map(([id, bodies]) => { const player = room?.players.find((member) => member.id === id); return { id, name: player?.name ?? "Player", color: player?.color ?? "#2fd3cb", bodies }; });
+      gameRef.current?.setRemotePlayers(remote);
+    },
+    onStatus: setRoomStatus, onError: setRoomError,
+  }, "Player", shirtColor);
+
+  const createRoom = async () => {
+    setRoomError(""); setRoomStatus("Opening room...");
+    try { const room = makePeerRoom(); roomRef.current = room; const state = await room.create(createMap, createMaxPlayers); const arena = ENVS.find((env) => env.id === state.mapId); if (arena) { gameRef.current?.selectEnvironment(arena.id); setPlace({ name: arena.name, emoji: arena.emoji }); } gameRef.current?.startGame(); setGameStarted(true); setMenuOpen(false); setRoomScreen("home"); }
+    catch (error) { roomRef.current?.leave(false); roomRef.current = null; setRoomError(error instanceof Error ? error.message : "Could not create room."); setRoomStatus(""); }
+  };
+
+  const joinRoom = async () => {
+    setRoomError(""); setRoomStatus("Joining room...");
+    try { const room = makePeerRoom(); roomRef.current = room; const state = await room.join(joinCode); const arena = ENVS.find((env) => env.id === state.mapId); if (arena) { gameRef.current?.selectEnvironment(arena.id); setPlace({ name: arena.name, emoji: arena.emoji }); } gameRef.current?.startGame(); setGameStarted(true); setMenuOpen(false); setRoomScreen("home"); }
+    catch (error) { roomRef.current?.leave(false); roomRef.current = null; setRoomError(error instanceof Error ? error.message : "Could not join room."); setRoomStatus(""); }
+  };
+
+  const leaveRoom = async () => { await roomRef.current?.leave(true); roomRef.current = null; setRoomState(null); gameRef.current?.setRemotePlayers([]); };
   const applyStyle = useCallback((shirt: string, hair: string) => gameRef.current?.setBuddyColors(shirt, hair), []);
   const reset = useCallback(() => gameRef.current?.resetBuddy(), []);
 
