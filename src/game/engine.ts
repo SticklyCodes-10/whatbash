@@ -37,6 +37,7 @@ export interface GameCallbacks {
   onPlace: (name: string, emoji: string) => void;
   onModel: (status: string, custom: boolean) => void;
   onReady: () => void;
+  onRadiator: () => void;
 }
 
 interface Proj extends DynObj {
@@ -100,6 +101,16 @@ export class Game {
   private endRunElapsed = -1;
   private endRunCallback: (() => void) | null = null;
   private endRunBlastDone = false;
+  private radiatorElapsed = -1;
+  private radiatorDone: (() => void) | null = null;
+  private radiatorObjects: THREE.Object3D[] = [];
+  private radiatorEarth: THREE.Mesh | null = null;
+  private radiatorShip: THREE.Group | null = null;
+  private radiatorBeam: THREE.Mesh | null = null;
+  private radiatorCore: THREE.Mesh | null = null;
+  private radiatorStars: THREE.Points | null = null;
+  private radiatorBodyTypes: Array<{ body: CANNON.Body; type: number }> = [];
+  private radiatorFire = 0;
   world: CANNON.World;
   raycaster = new THREE.Raycaster();
   rag!: Ragdoll;
@@ -268,6 +279,7 @@ export class Game {
     this.disposed = true;
     this.buddySpeech?.remove();
     this.buddySpeech = null;
+    this.clearRadiatorObjects();
     this.setRemotePlayers([]);
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
@@ -410,6 +422,55 @@ export class Game {
     this.toolIdentity = t;
     this.tool = TOOLS.find((item) => item.id === t)?.action ?? t;
     this.sfx.tick();
+  }
+
+  private clearRadiatorObjects() {
+    for (const object of this.radiatorObjects) {
+      this.scene.remove(object);
+      object.traverse((node) => {
+        const mesh = node as THREE.Mesh;
+        if (mesh.isMesh || (node as THREE.Points).isPoints) {
+          mesh.geometry?.dispose?.();
+          const material = (node as THREE.Mesh).material;
+          if (Array.isArray(material)) material.forEach((m) => m.dispose());
+          else material?.dispose?.();
+        }
+      });
+    }
+    this.radiatorObjects = [];
+    this.radiatorEarth = null; this.radiatorShip = null; this.radiatorBeam = null;
+    this.radiatorCore = null; this.radiatorStars = null;
+  }
+
+  startRadiatorCutscene(onComplete: () => void) {
+    if (this.radiatorElapsed >= 0 || !this.rag) return;
+    this.radiatorElapsed = 0; this.radiatorDone = onComplete;
+    this.following = false; this.controls.enabled = false; this.menuMode = false; this.radiatorFire = 1;
+    this.radiatorBodyTypes = this.rag.list.map(({ body }) => {
+      const saved = { body, type: body.type };
+      body.velocity.set(0, 0, 0); body.angularVelocity.set(0, 0, 0);
+      body.type = CANNON.Body.STATIC; body.updateMassProperties(); return saved;
+    });
+    this.rag.syncVisuals(); this.clearRadiatorObjects();
+    const starGeo = new THREE.BufferGeometry(); const coords = new Float32Array(5400);
+    for (let i = 0; i < 1800; i++) { coords[i*3]=rnd(-90,90); coords[i*3+1]=rnd(-55,55); coords[i*3+2]=rnd(-90,90); }
+    starGeo.setAttribute("position", new THREE.BufferAttribute(coords,3));
+    const stars = new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xb9eaff,size:0.16}));
+    this.scene.add(stars); this.radiatorObjects.push(stars); this.radiatorStars=stars;
+    const earth = new THREE.Mesh(new THREE.SphereGeometry(13,48,32),new THREE.MeshStandardMaterial({color:0x1263b5,roughness:0.82,emissive:0x08254c,emissiveIntensity:0.45}));
+    earth.position.set(0,-5,-48); this.scene.add(earth); this.radiatorObjects.push(earth); this.radiatorEarth=earth;
+    const clouds = new THREE.Mesh(new THREE.SphereGeometry(13.12,40,28),new THREE.MeshBasicMaterial({color:0x8edcff,transparent:true,opacity:0.15,wireframe:true}));
+    clouds.position.copy(earth.position); this.scene.add(clouds); this.radiatorObjects.push(clouds);
+    const ship = new THREE.Group(); ship.position.set(0,7,-23);
+    const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.8,2.1,10,8),new THREE.MeshStandardMaterial({color:0x343d52,metalness:0.9,roughness:0.24})); hull.rotation.x=Math.PI/2; ship.add(hull);
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(1,3.8,8),new THREE.MeshStandardMaterial({color:0xa8bacb,metalness:0.85,roughness:0.2})); nose.rotation.x=-Math.PI/2; nose.position.z=-6.5; ship.add(nose);
+    const glow = new THREE.Mesh(new THREE.CylinderGeometry(1.25,1.7,1.4,12),new THREE.MeshBasicMaterial({color:0x22d3ee})); glow.rotation.x=Math.PI/2; glow.position.z=5.2; ship.add(glow);
+    for(let i=0;i<4;i++){const fin=new THREE.Mesh(new THREE.BoxGeometry(0.18,2.8,3.1),new THREE.MeshStandardMaterial({color:0x1e293b,metalness:0.8}));fin.position.set(i<2?-1.5:1.5,i%2?-1.1:1.1,1.2);fin.rotation.z=(i%2?-1:1)*0.25;ship.add(fin);}
+    this.scene.add(ship); this.radiatorObjects.push(ship); this.radiatorShip=ship;
+    const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,1,20,1,true),new THREE.MeshBasicMaterial({color:0xfff0a6,transparent:true,opacity:0,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+    this.scene.add(beam);this.radiatorObjects.push(beam);this.radiatorBeam=beam;
+    const core=new THREE.Mesh(new THREE.SphereGeometry(0.3,24,18),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,blending:THREE.AdditiveBlending}));
+    this.scene.add(core);this.radiatorObjects.push(core);this.radiatorCore=core;this.sfx.whoosh();
   }
   selectEnvironment(id: string) {
     const def = ENVS.find((item) => item.id === id);
@@ -657,6 +718,9 @@ export class Game {
         } else {
           this.controls.enabled = true;
         }
+        break;
+      case "radiator":
+        this.cb.onRadiator();
         break;
     }
   }
@@ -1218,6 +1282,23 @@ export class Game {
     bubble.style.top = `${y}px`;
   }
 
+  private updateRadiatorCutscene(dt: number) {
+    if (this.radiatorElapsed < 0) {
+      if (this.radiatorFire > 0 && this.rag && Math.random() < 0.42) {
+        const p=this.rag.center(new THREE.Vector3()); const x=p.x+rnd(-5,5), z=p.z+rnd(-5,5);
+        this.fx.burst(new THREE.Vector3(x,0.15,z),5,3.2,[0xff3b0a,0xff7a18,0xffd166],0.55,1.15,{gravity:-1.8,drag:1.4,grow:1.8});
+        this.smoke.burst(new THREE.Vector3(x,0.3,z),2,0.8,[0x242424,0x55504b],0.9,1.8,{gravity:-0.4,drag:1,grow:2.4});
+      } return;
+    }
+    const t=this.radiatorElapsed; this.radiatorElapsed+=dt;
+    const ship=this.radiatorShip, beam=this.radiatorBeam, core=this.radiatorCore;
+    if(t<3.8){const u=THREE.MathUtils.clamp(t/3.8,0,1);this.camera.position.lerpVectors(new THREE.Vector3(0,10,8),new THREE.Vector3(0,8,-8),ease(u));this.controls.target.lerpVectors(new THREE.Vector3(0,0,0),new THREE.Vector3(0,5,-32),ease(u));if(ship){ship.rotation.y=Math.sin(t*0.65)*0.18+ease(u)*0.45;ship.rotation.z=Math.sin(t*0.9)*0.07;}if(this.radiatorStars)this.radiatorStars.rotation.y+=dt*0.012;}
+    else if(t<5.4){if(ship)ship.rotation.y+=dt*0.18;if(core){core.position.set(0,5.7,-31);core.scale.setScalar(0.35+Math.sin(t*18)*0.08+(t-3.8)*0.7);(core.material as THREE.MeshBasicMaterial).opacity=1;}if(beam){beam.position.set(0,-8,-38);beam.scale.set(1,25,1);beam.rotation.z=0.03;(beam.material as THREE.MeshBasicMaterial).opacity=0.9;}if(t>4.4&&Math.random()<0.35)this.sfx.tick();this.camera.position.lerp(new THREE.Vector3(0,7,-10),1-Math.exp(-2*dt));this.controls.target.lerp(new THREE.Vector3(0,3,-35),1-Math.exp(-2*dt));}
+    else if(t<7.4){if(beam){(beam.material as THREE.MeshBasicMaterial).opacity=1;beam.scale.set(1.8,45,1.8);}if(core){core.scale.setScalar(1.8+Math.sin(t*30)*0.45);(core.material as THREE.MeshBasicMaterial).opacity=1;}this.shake=Math.max(this.shake,2.8);this.flash.position.set(0,0,-35);this.flash.intensity=260;if(Math.random()<0.22)this.sfx.explosion();this.camera.position.lerp(new THREE.Vector3(0,5,-9),1-Math.exp(-4*dt));this.controls.target.lerp(new THREE.Vector3(0,-4,-45),1-Math.exp(-4*dt));}
+    else if(t<8.6){if(beam)(beam.material as THREE.MeshBasicMaterial).opacity=Math.max(0,1-(t-7.4)/1.2);if(core)(core.material as THREE.MeshBasicMaterial).opacity=Math.max(0,1-(t-7.4)/1.2);const buddy=this.rag.center(new THREE.Vector3());this.camera.position.lerp(buddy.clone().add(new THREE.Vector3(8,5,10)),1-Math.exp(-2.5*dt));this.controls.target.lerp(buddy,1-Math.exp(-2.5*dt));}
+    else if(t<13.6){const buddy=this.rag.center(new THREE.Vector3());this.camera.position.lerp(buddy.clone().add(new THREE.Vector3(5.2,3.1,6.8)),1-Math.exp(-3*dt));this.controls.target.lerp(buddy.clone().add(new THREE.Vector3(0,0.6,0)),1-Math.exp(-3*dt));this.shake=Math.max(this.shake,1.9);if(Math.random()<0.85){const body=this.rag.rb.chest.body.position;this.fx.burst(new THREE.Vector3(body.x+rnd(-0.45,0.45),body.y+rnd(-0.6,0.7),body.z+rnd(-0.35,0.35)),7,4.5,[0xffef9a,0xff8a1e,0xff3b0a],0.28,0.65,{gravity:-0.8,drag:1.4});if(Math.random()<0.18)this.sfx.zap();}if(t>8.8&&Math.random()<0.12)this.sfx.explosion();}
+    else{this.clearRadiatorObjects();for(const saved of this.radiatorBodyTypes){saved.body.type=saved.type;saved.body.updateMassProperties();saved.body.velocity.set(0,0,0);saved.body.angularVelocity.set(0,0,0);}this.radiatorBodyTypes=[];this.rag.syncVisuals();this.radiatorElapsed=-1;this.camera.position.copy(this.rag.center(new THREE.Vector3()).add(new THREE.Vector3(3.6,2.4,6.4)));this.controls.target.copy(this.rag.center(new THREE.Vector3()));this.controls.enabled=true;this.following=true;this.sfx.whoosh();const done=this.radiatorDone;this.radiatorDone=null;done?.();}
+  }
   private loop = () => {
     if (this.disposed) return;
     this.raf = requestAnimationFrame(this.loop);
@@ -1226,6 +1307,7 @@ export class Game {
 
     this.world.step(1 / 60, dt, 5);
     this.updateRemoteAvatars(rawDt);
+    this.updateRadiatorCutscene(rawDt);
 
     this.env?.update(rawDt);
 
