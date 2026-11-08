@@ -73,7 +73,7 @@ const ease = (t: number) => 1 - Math.pow(1 - t, 3);
 const PincushionShader = {
   uniforms: { tDiffuse: { value: null }, strength: { value: 0.13 }, aspect: { value: 1 } },
   vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-  fragmentShader: "uniform sampler2D tDiffuse; uniform float strength; uniform float aspect; varying vec2 vUv; void main(){ vec2 p=(vUv-0.5)*2.0; p.x*=aspect; float r2=dot(p,p); vec2 warped=p*(1.0+strength*r2); warped.x/=aspect; vec2 uv=warped*0.5+0.5; vec4 color=texture2D(tDiffuse,uv); float edge=smoothstep(1.42,0.72,r2); color.rgb*=mix(0.76,1.0,edge); gl_FragColor=vec4(color.rgb,color.a); }"
+  fragmentShader: "uniform sampler2D tDiffuse; uniform float strength; uniform float aspect; varying vec2 vUv; void main(){ vec2 p=(vUv-0.5)*2.0; p.x*=aspect; float r2=dot(p,p); vec2 warped=p*(1.0+strength*r2); warped.x/=aspect; vec2 uv=warped*0.5+0.5; vec4 color=texture2D(tDiffuse,uv); float edge=(1.0-smoothstep(0.72,1.42,r2)); color.rgb*=mix(0.76,1.0,edge); gl_FragColor=vec4(color.rgb,color.a); }"
 };
 
 
