@@ -246,6 +246,7 @@ export class PeerRoom {
     const promote = nextOwner === this.localId;
     this.isOwner = promote;
     this.promotionTimer = window.setTimeout(() => {
+      this.promotionTimer = null;
       if (this.closed) return;
       if (promote) {
         this.isOwner = true;
