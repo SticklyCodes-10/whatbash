@@ -483,7 +483,7 @@ export class Game {
         mat.opacity = Math.max(0, 0.95 - life * 2.4);
         if (life > 0.42) {
           this.scene.remove(object);
-          object.geometry.dispose();
+          (object as THREE.Mesh).geometry.dispose();
           mat.dispose();
           this.animeFightObjects = this.animeFightObjects.filter((entry) => entry !== object);
         }
