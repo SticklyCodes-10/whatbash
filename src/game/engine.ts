@@ -104,6 +104,7 @@ export class Game {
   private groundContact: CANNON.ContactMaterial;
 
   private tool: ToolId = "boot";
+  private toolIdentity: ToolId = "boot";
   private projs: Proj[] = [];
   private anims: ToolAnim[] = [];
   private fxMeshes: FxMesh[] = [];
@@ -334,6 +335,7 @@ export class Game {
     this.pushStats();
   }
   setTool(t: ToolId) {
+    this.toolIdentity = t;
     this.tool = TOOLS.find((item) => item.id === t)?.action ?? t;
     this.sfx.tick();
   }
@@ -539,6 +541,7 @@ export class Game {
   // ---------------------------------------------------------------- tools
   private useTool(r: RayInfo) {
     const hit = r.hit!;
+    this.spawnIdentityWeapon(hit.point, r.dir);
     switch (this.tool) {
       case "boot":
         this.melee(r, "boot", 11, true);
@@ -635,6 +638,50 @@ export class Game {
     this.flash.intensity = Math.min(900, 260 + power * 28);
     this.fx.burst(p, 18, 3.5, [0x67e8f9, 0xf0abfc, 0xffffff], 0.24, 0.8, { gravity: 1.5, drag: 1.2, grow: 1.5 });
     this.sfx.thud(power / 16, tool === "hammer" ? 0.7 : tool === "bat" ? 1.2 : 1);
+  }
+
+
+  private spawnIdentityWeapon(hit: THREE.Vector3, dir: THREE.Vector3) {
+    const index = Math.max(0, TOOLS.findIndex((item) => item.id === this.toolIdentity));
+    const def = TOOLS[index] ?? TOOLS[0];
+    const seed = index + 1;
+    const hue = new THREE.Color(def.color);
+    const dark = hue.clone().multiplyScalar(0.24);
+    const glow = hue.clone().multiplyScalar(1.8);
+    const group = new THREE.Group();
+    const mat = (color: THREE.Color, metalness = 0.55, emissive = false) => new THREE.MeshStandardMaterial({
+      color, metalness, roughness: 0.28, emissive: emissive ? color : new THREE.Color(0x000000),
+      emissiveIntensity: emissive ? 1.15 : 0
+    });
+    const coreMat = mat(hue, 0.72);
+    const accentMat = mat(glow, 0.45, true);
+    const gripMat = mat(dark, 0.25);
+    const add = (geometry: THREE.BufferGeometry, material: THREE.Material, position: THREE.Vector3, rotation = new THREE.Euler()) => {
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.copy(position); mesh.rotation.copy(rotation); mesh.castShadow = true; group.add(mesh);
+    };
+    const profile = seed % 8;
+    const length = 0.62 + (seed % 5) * 0.09;
+    add(new THREE.CylinderGeometry(0.045, 0.07, length, 7 + (seed % 7)), gripMat, new THREE.Vector3(0, 0, 0));
+    if (profile === 0) add(new THREE.BoxGeometry(0.24, 0.2, 0.34 + (seed % 3) * 0.1), coreMat, new THREE.Vector3(0, 0.02, -0.12));
+    else if (profile === 1) add(new THREE.ConeGeometry(0.2, 0.5, 5 + (seed % 5)), coreMat, new THREE.Vector3(0, 0.02, -0.18), new THREE.Euler(Math.PI / 2, 0, 0));
+    else if (profile === 2) add(new THREE.TorusGeometry(0.2, 0.065, 8, 12), coreMat, new THREE.Vector3(0, 0, -0.2), new THREE.Euler(Math.PI / 2, 0, 0));
+    else if (profile === 3) add(new THREE.SphereGeometry(0.22, 8 + seed % 7, 6 + seed % 5), coreMat, new THREE.Vector3(0, 0, -0.18));
+    else if (profile === 4) add(new THREE.OctahedronGeometry(0.27 + (seed % 3) * 0.04), coreMat, new THREE.Vector3(0, 0, -0.18));
+    else if (profile === 5) add(new THREE.DodecahedronGeometry(0.24 + (seed % 3) * 0.04), coreMat, new THREE.Vector3(0, 0, -0.18));
+    else if (profile === 6) add(new THREE.CylinderGeometry(0.23, 0.08, 0.38, 6 + seed % 6), coreMat, new THREE.Vector3(0, 0, -0.18), new THREE.Euler(Math.PI / 2, 0, 0));
+    else add(new THREE.TorusKnotGeometry(0.14, 0.045, 48 + seed % 24, 6, 2 + seed % 3, 3 + seed % 4), coreMat, new THREE.Vector3(0, 0, -0.18));
+    const details = 2 + seed % 5;
+    for (let n = 0; n < details; n++) {
+      const angle = (Math.PI * 2 * n) / details;
+      const radius = 0.2 + (seed % 4) * 0.025;
+      const point = new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, -0.2 - (n % 2) * 0.08);
+      add(n % 2 === 0 ? new THREE.BoxGeometry(0.055, 0.19, 0.09) : new THREE.ConeGeometry(0.075, 0.2, 5 + seed % 4), accentMat, point, new THREE.Euler(0, 0, angle));
+    }
+    const anim: ToolAnim = { group, t: 0, dur: 0.62, kind: "thrust", hit: hit.clone(), dir: dir.clone().normalize(), right: new THREE.Vector3(1, 0, 0) };
+    this.scene.add(group);
+    this.anims.push(anim);
+    this.fx.burst(hit, 9 + seed % 15, 1.2 + (seed % 7) * 0.25, [hue.getHex(), glow.getHex(), 0xffffff], 0.18, 0.38, { drag: 2.8, grow: 1.4 });
   }
 
   private spawnToolVisual(tool: "boot" | "fist" | "bat" | "hammer", hit: THREE.Vector3, dir: THREE.Vector3) {
